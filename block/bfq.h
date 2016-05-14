@@ -357,8 +357,6 @@ enum bfq_device_speed {
  * struct bfq_data - per device data structure.
  * @queue: request queue for the managed device.
  * @root_group: root bfq_group for the device.
- * @active_numerous_groups: number of bfq_groups containing more than one
- *                          active @bfq_entity.
  * @queue_weights_tree: rbtree of weight counters of @bfq_queues, sorted by
  *                      weight. Used to keep track of whether all @bfq_queues
  *                     have the same weight. The tree contains one counter
@@ -471,7 +469,7 @@ enum bfq_device_speed {
  *			  may be reactivated for a queue (in jiffies).
  * @bfq_wr_min_inter_arr_async: minimum period between request arrivals
  *				after which weight-raising may be
- *				reactivated for an already busy queue
+ *				reactivated for an already busy async queue
  *				(in jiffies).
  * @bfq_wr_max_softrt_rate: max service-rate for a soft real-time queue,
  *			    sectors per seconds.
@@ -486,10 +484,6 @@ struct bfq_data {
 	struct request_queue *queue;
 
 	struct bfq_group *root_group;
-
-#ifdef CONFIG_BFQ_GROUP_IOSCHED
-	int active_numerous_groups;
-#endif
 
 	struct rb_root queue_weights_tree;
 	struct rb_root group_weights_tree;
@@ -562,6 +556,10 @@ struct bfq_data {
 enum bfqq_state_flags {
 	BFQ_BFQQ_FLAG_busy = 0,		/* has requests or is in service */
 	BFQ_BFQQ_FLAG_wait_request,	/* waiting for a request */
+	BFQ_BFQQ_FLAG_non_blocking_wait_rq, /*
+					     * waiting for a request
+					     * without idling the device
+					     */
 	BFQ_BFQQ_FLAG_must_alloc,	/* must be allowed rq alloc */
 	BFQ_BFQQ_FLAG_fifo_expire,	/* FIFO checked in this slice */
 	BFQ_BFQQ_FLAG_idle_window,	/* slice idling enabled */
@@ -605,6 +603,7 @@ static int bfq_bfqq_##name(const struct bfq_queue *bfqq)		\
 
 BFQ_BFQQ_FNS(busy);
 BFQ_BFQQ_FNS(wait_request);
+BFQ_BFQQ_FNS(non_blocking_wait_rq);
 BFQ_BFQQ_FNS(must_alloc);
 BFQ_BFQQ_FNS(fifo_expire);
 BFQ_BFQQ_FNS(idle_window);
@@ -662,6 +661,7 @@ enum bfqq_expiration {
 	BFQ_BFQQ_BUDGET_TIMEOUT,	/* budget took too long to be used */
 	BFQ_BFQQ_BUDGET_EXHAUSTED,	/* budget consumed */
 	BFQ_BFQQ_NO_MORE_REQUESTS,	/* the queue has no more requests */
+	BFQ_BFQQ_PREEMPTED		/* preemption in progress */
 };
 
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
