@@ -7,7 +7,7 @@
  * Copyright (C) 2008 Fabio Checconi <fabio@gandalf.sssup.it>
  *		      Paolo Valente <paolo.valente@unimore.it>
  *
- * Copyright (C) 2010 Paolo Valente <paolo.valente@unimore.it>
+ * Copyright (C) 2016 Paolo Valente <paolo.valente@unimore.it>
  */
 
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
@@ -175,9 +175,9 @@ static void bfq_calc_finish(struct bfq_entity *entity, unsigned long service)
 	entity->finish = entity->start +
 		bfq_delta(service, entity->weight);
 
-	start = (((entity->start>>10)*1000)>>10)>>2;
-	finish = (((entity->finish>>10)*1000)>>10)>>2;
-	delta = (((bfq_delta(service, entity->weight)>>10)*1000)>>10)>>2;
+	start = ((entity->start>>10)*1000)>>12;
+	finish = ((entity->finish>>10)*1000)>>12;
+	delta = ((bfq_delta(service, entity->weight)>>10)*1000)>>12;
 
 	if (bfqq) {
 		bfq_log_bfqq(bfqq->bfqd, bfqq,
@@ -192,7 +192,7 @@ static void bfq_calc_finish(struct bfq_entity *entity, unsigned long service)
 
 		bfq_log_bfqg((struct bfq_data *)bfqg->bfqd, bfqg,
 			"calc_finish group: serv %lu, w %d",
-			service, entity->weight);
+			     service, entity->weight);
 		bfq_log_bfqg((struct bfq_data *)bfqg->bfqd, bfqg,
 			"calc_finish group: start %llu, finish %llu, delta %llu",
 			start, finish, delta);
@@ -417,8 +417,6 @@ static void bfq_active_insert(struct bfq_service_tree *st,
 		BUG_ON(!bfqg);
 		BUG_ON(!bfqd);
 		bfqg->active_entities++;
-		if (bfqg->active_entities == 2)
-			bfqd->active_numerous_groups++;
 	}
 #endif
 }
@@ -530,10 +528,6 @@ static void bfq_active_extract(struct bfq_service_tree *st,
 		BUG_ON(!bfqd);
 		BUG_ON(!bfqg->active_entities);
 		bfqg->active_entities--;
-		if (bfqg->active_entities == 1) {
-			BUG_ON(!bfqd->active_numerous_groups);
-			bfqd->active_numerous_groups--;
-		}
 	}
 #endif
 }
@@ -741,7 +735,7 @@ static void bfq_bfqq_served(struct bfq_queue *bfqq, int served)
 		st = bfq_entity_service_tree(entity);
 
 		entity->service += served;
-		BUG_ON(entity->service > entity->budget);
+
 		BUG_ON(st->wsum == 0);
 
 		st->vtime += bfq_delta(served, st->wsum);
@@ -775,6 +769,7 @@ static void bfq_bfqq_charge_full_budget(struct bfq_queue *bfqq)
 /**
  * __bfq_activate_entity - activate an entity.
  * @entity: the entity being activated.
+ * @non_blocking_wait_rq: true if this entity was waiting for a request
  *
  * Called whenever an entity is activated, i.e., it is not active and one
  * of its children receives a new request, or has to be reactivated due to
@@ -782,10 +777,13 @@ static void bfq_bfqq_charge_full_budget(struct bfq_queue *bfqq)
  * service received if @entity is active) of the queue to calculate its
  * timestamps.
  */
-static void __bfq_activate_entity(struct bfq_entity *entity)
+static void __bfq_activate_entity(struct bfq_entity *entity,
+				  bool non_blocking_wait_rq)
 {
 	struct bfq_sched_data *sd = entity->sched_data;
 	struct bfq_service_tree *st = bfq_entity_service_tree(entity);
+	struct bfq_queue *bfqq = bfq_entity_to_bfqq(entity);
+	bool backshifted = false;
 
 	BUG_ON(!sd);
 	BUG_ON(!st);
@@ -806,31 +804,110 @@ static void __bfq_activate_entity(struct bfq_entity *entity)
 		 * old start time.
 		 */
 		bfq_active_extract(st, entity);
-	} else if (entity->tree == &st->idle) {
-		/*
-		 * Must be on the idle tree, bfq_idle_extract() will
-		 * check for that.
-		 */
-		bfq_idle_extract(st, entity);
-		entity->start = bfq_gt(st->vtime, entity->finish) ?
-				       st->vtime : entity->finish;
 	} else {
-		/*
-		 * The finish time of the entity may be invalid, and
-		 * it is in the past for sure, otherwise the queue
-		 * would have been on the idle tree.
-		 */
-		entity->start = st->vtime;
-		st->wsum += entity->weight;
-		bfq_get_entity(entity);
+		unsigned long long min_vstart;
 
-		BUG_ON(entity->on_st);
-		entity->on_st = 1;
+		/* See comments on bfq_fqq_update_budg_for_activation */
+		if (non_blocking_wait_rq && bfq_gt(st->vtime, entity->finish)) {
+			backshifted = true;
+			min_vstart = entity->finish;
+		} else
+			min_vstart = st->vtime;
+
+		if (entity->tree == &st->idle) {
+			/*
+			 * Must be on the idle tree, bfq_idle_extract() will
+			 * check for that.
+			 */
+			bfq_idle_extract(st, entity);
+			entity->start = bfq_gt(min_vstart, entity->finish) ?
+				min_vstart : entity->finish;
+		} else {
+			/*
+			 * The finish time of the entity may be invalid, and
+			 * it is in the past for sure, otherwise the queue
+			 * would have been on the idle tree.
+			 */
+			entity->start = min_vstart;
+			st->wsum += entity->weight;
+			bfq_get_entity(entity);
+
+			BUG_ON(entity->on_st);
+			entity->on_st = 1;
+		}
 	}
 
 	st = __bfq_entity_update_weight_prio(st, entity);
 	bfq_calc_finish(entity, entity->budget);
+
+	/*
+	 * If some queues enjoy backshifting for a while, then their
+	 * (virtual) finish timestamps may happen to become lower and
+	 * lower than the system virtual time.  In particular, if
+	 * these queues often happen to be idle for short time
+	 * periods, and during such time periods other queues with
+	 * higher timestamps happen to be busy, then the backshifted
+	 * timestamps of the former queues can become much lower than
+	 * the system virtual time. In fact, to serve the queues with
+	 * higher timestamps while the ones with lower timestamps are
+	 * idle, the system virtual time may be pushed-up to much
+	 * higher values than the finish timestamps of the idle
+	 * queues. As a consequence, the finish timestamps of all new
+	 * or newly activated queues may end up being much larger than
+	 * those of lucky queues with backshifted timestamps. The
+	 * latter queues may then monopolize the device for a lot of
+	 * time. This would simply break service guarantees.
+	 *
+	 * To reduce this problem, push up the backshifted timestamps
+	 * of bfqq a little bit: just enough to let the finish
+	 * timestamp of bfqq be equal to the current value of the
+	 * system virtual time. This may introduce a little unfairness
+	 * among queues with backshifted timestamps, but it does not
+	 * break worst-case fairness guarantees.
+	 *
+	 * As a special case, if bfqq is weight-raised, push up
+	 * timestamps much less, to keep very low the probability that
+	 * this push up causes the backshifted finish timestamps of
+	 * weight-raised queues to become higher than the backshifted
+	 * finish timestamps of non weight-raised queues.
+	 */
+	if (backshifted && bfq_gt(st->vtime, entity->finish)) {
+		unsigned long delta = st->vtime - entity->finish;
+
+		if (bfqq)
+			delta /= bfqq->wr_coeff;
+
+		entity->start += delta;
+		entity->finish += delta;
+
+		if (bfqq) {
+			bfq_log_bfqq(bfqq->bfqd, bfqq,
+				     "__activate_entity: new queue finish %llu",
+				     ((entity->finish>>10)*1000)>>12);
+		} else {
+			struct bfq_group *bfqg =
+				container_of(entity, struct bfq_group, entity);
+
+			bfq_log_bfqg((struct bfq_data *)bfqg->bfqd, bfqg,
+				     "__activate_entity: new group finish %llu",
+				     ((entity->finish>>10)*1000)>>12);
+		}
+	}
+
 	bfq_active_insert(st, entity);
+
+	if (bfqq) {
+		bfq_log_bfqq(bfqq->bfqd, bfqq,
+			"__activate_entity: queue %seligible in st %p",
+			     entity->start <= st->vtime ? "" : "non ", st);
+	} else {
+		struct bfq_group *bfqg =
+			container_of(entity, struct bfq_group, entity);
+
+		bfq_log_bfqg((struct bfq_data *)bfqg->bfqd, bfqg,
+			"__activate_entity: group %seligible in st %p",
+			     entity->start <= st->vtime ? "" : "non ", st);
+	}
 }
 
 /**
@@ -839,13 +916,14 @@ static void __bfq_activate_entity(struct bfq_entity *entity)
  *
  * Activate @entity and all the entities on the path from it to the root.
  */
-static void bfq_activate_entity(struct bfq_entity *entity)
+static void bfq_activate_entity(struct bfq_entity *entity,
+				bool non_blocking_wait_rq)
 {
 	struct bfq_sched_data *sd;
 
 	for_each_entity(entity) {
 		BUG_ON(!entity);
-		__bfq_activate_entity(entity);
+		__bfq_activate_entity(entity, non_blocking_wait_rq);
 
 		sd = entity->sched_data;
 		if (!bfq_update_next_in_service(sd))
@@ -942,7 +1020,7 @@ static void bfq_deactivate_entity(struct bfq_entity *entity, int requeue)
 			goto update;
 
 		/*
-		 * If we reach there the parent is no more backlogged and
+		 * If we get here, then the parent is no more backlogged and
 		 * we want to propagate the dequeue upwards.
 		 */
 		requeue = 1;
@@ -954,19 +1032,19 @@ update:
 	entity = parent;
 	for_each_entity(entity) {
 		struct bfq_queue *bfqq = bfq_entity_to_bfqq(entity);
-		__bfq_activate_entity(entity);
+		__bfq_activate_entity(entity, false);
 
 		sd = entity->sched_data;
 		if (bfqq)
 			bfq_log_bfqq(bfqq->bfqd, bfqq,
-				     "invoking udpdate_:next for this queue");
+				     "invoking udpdate_next for this queue");
 		else {
 			struct bfq_group *bfqg =
 				container_of(entity,
 					     struct bfq_group, entity);
 
 			bfq_log_bfqg((struct bfq_data *)bfqg->bfqd, bfqg,
-				     "invoking udpdate_:next for this entity");
+				     "invoking udpdate_next for this entity");
 		}
 		if (!bfq_update_next_in_service(sd))
 			break;
@@ -1120,6 +1198,13 @@ static struct bfq_entity *bfq_lookup_next_entity(struct bfq_sched_data *sd,
 	return entity;
 }
 
+static bool next_queue_may_preempt(struct bfq_data *bfqd)
+{
+	struct bfq_sched_data *sd = &bfqd->root_group->sched_data;
+
+	return sd->next_in_service != sd->in_service_entity;
+}
+
 /*
  * Get next queue for service.
  */
@@ -1186,9 +1271,7 @@ static void bfq_deactivate_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 {
 	struct bfq_entity *entity = &bfqq->entity;
 
-	if (bfqq == bfqd->in_service_queue)
-		__bfq_bfqd_reset_in_service(bfqd);
-
+	BUG_ON(bfqq == bfqd->in_service_queue);
 	bfq_deactivate_entity(entity, requeue);
 }
 
@@ -1196,7 +1279,8 @@ static void bfq_activate_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 {
 	struct bfq_entity *entity = &bfqq->entity;
 
-	bfq_activate_entity(entity);
+	bfq_activate_entity(entity, bfq_bfqq_non_blocking_wait_rq(bfqq));
+	bfq_clear_bfqq_non_blocking_wait_rq(bfqq);
 }
 
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
@@ -1212,6 +1296,7 @@ static void bfq_del_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 {
 	BUG_ON(!bfq_bfqq_busy(bfqq));
 	BUG_ON(!RB_EMPTY_ROOT(&bfqq->sort_list));
+	BUG_ON(bfqq == bfqd->in_service_queue);
 
 	bfq_log_bfqq(bfqd, bfqq, "del from busy");
 
@@ -1238,7 +1323,11 @@ static void bfq_del_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 
 	bfqg_stats_update_dequeue(bfqq_group(bfqq));
 
+	BUG_ON(bfqq->entity.budget < 0);
+
 	bfq_deactivate_bfqq(bfqd, bfqq, requeue);
+
+	BUG_ON(bfqq->entity.budget < 0);
 }
 
 /*
