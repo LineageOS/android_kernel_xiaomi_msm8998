@@ -893,10 +893,9 @@ static void bfq_add_request(struct request *rq)
 						bfqq->budget_timeout +
 						bfqd->bfq_wr_min_idle_time);
 
-#ifdef CONFIG_BFQ_GROUP_IOSCHED
 		bfqg_stats_update_io_add(bfqq_group(RQ_BFQQ(rq)), bfqq,
 					 rq->cmd_flags);
-#endif
+
 		if (bfq_bfqq_sync(bfqq)) {
 			bool already_in_burst =
 			   !hlist_unhashed(&bfqq->burst_list_node) ||
@@ -1134,9 +1133,7 @@ static void bfq_remove_request(struct request *rq)
 		BUG_ON(bfqq->meta_pending == 0);
 		bfqq->meta_pending--;
 	}
-#ifdef CONFIG_BFQ_GROUP_IOSCHED
 	bfqg_stats_update_io_remove(bfqq_group(bfqq), rq->cmd_flags);
-#endif
 }
 
 static int bfq_merge(struct request_queue *q, struct request **req,
@@ -1221,9 +1218,7 @@ static void bfq_merged_requests(struct request_queue *q, struct request *rq,
 		bfqq->next_rq = rq;
 
 	bfq_remove_request(next);
-#ifdef CONFIG_BFQ_GROUP_IOSCHED
 	bfqg_stats_update_io_merged(bfqq_group(bfqq), next->cmd_flags);
-#endif
 }
 
 /* Must be called with bfqq != NULL */
@@ -1648,9 +1643,7 @@ static void __bfq_set_in_service_queue(struct bfq_data *bfqd,
 				       struct bfq_queue *bfqq)
 {
 	if (bfqq) {
-#ifdef CONFIG_BFQ_GROUP_IOSCHED
 		bfqg_stats_update_avg_queue_size(bfqq_group(bfqq));
-#endif
 		bfq_mark_bfqq_must_alloc(bfqq);
 		bfq_mark_bfqq_budget_new(bfqq);
 		bfq_clear_bfqq_fifo_expire(bfqq);
@@ -1743,9 +1736,7 @@ static void bfq_arm_slice_timer(struct bfq_data *bfqd)
 		sl = sl * 3;
 	bfqd->last_idling_start = ktime_get();
 	mod_timer(&bfqd->idle_slice_timer, jiffies + sl);
-#ifdef CONFIG_BFQ_GROUP_IOSCHED
 	bfqg_stats_set_start_idle_time(bfqq_group(bfqq));
-#endif
 	bfq_log(bfqd, "arm idle: %u/%u ms",
 		jiffies_to_msecs(sl), jiffies_to_msecs(bfqd->bfq_slice_idle));
 }
@@ -1799,10 +1790,6 @@ static void bfq_dispatch_insert(struct request_queue *q, struct request *rq)
 
 	if (bfq_bfqq_sync(bfqq))
 		bfqd->sync_flight++;
-#ifdef CONFIG_BFQ_GROUP_IOSCHED
-	bfqg_stats_update_dispatch(bfqq_group(bfqq), blk_rq_bytes(rq),
-				   rq->cmd_flags);
-#endif
 }
 
 /*
@@ -2698,9 +2685,7 @@ static struct bfq_queue *bfq_select_queue(struct bfq_data *bfqd)
 				 */
 				bfq_clear_bfqq_wait_request(bfqq);
 				del_timer(&bfqd->idle_slice_timer);
-#ifdef CONFIG_BFQ_GROUP_IOSCHED
 				bfqg_stats_update_idle_time(bfqq_group(bfqq));
-#endif
 			}
 			goto keep_queue;
 		}
@@ -3453,9 +3438,7 @@ static void bfq_rq_enqueued(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 		 */
 		bfq_clear_bfqq_wait_request(bfqq);
 		del_timer(&bfqd->idle_slice_timer);
-#ifdef CONFIG_BFQ_GROUP_IOSCHED
 		bfqg_stats_update_idle_time(bfqq_group(bfqq));
-#endif
 
 		/*
 		 * The queue is not empty, because a new request just
@@ -3566,11 +3549,9 @@ static void bfq_completed_request(struct request_queue *q, struct request *rq)
 	BUG_ON(!bfqq->dispatched);
 	bfqd->rq_in_driver--;
 	bfqq->dispatched--;
-#ifdef CONFIG_BFQ_GROUP_IOSCHED
 	bfqg_stats_update_completion(bfqq_group(bfqq),
 				     rq_start_time_ns(rq),
 				     rq_io_start_time_ns(rq), rq->cmd_flags);
-#endif
 
 	if (!bfqq->dispatched && !bfq_bfqq_busy(bfqq)) {
 		bfq_weights_tree_remove(bfqd, &bfqq->entity,
@@ -4341,6 +4322,24 @@ static struct elevator_type iosched_bfq = {
 	.elevator_name =	"bfq",
 	.elevator_owner =	THIS_MODULE,
 };
+
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
+static struct blkcg_policy blkcg_policy_bfq = {
+	.dfl_cftypes		= bfq_blkg_files,
+	.legacy_cftypes		= bfq_blkcg_legacy_files,
+
+	.cpd_alloc_fn		= bfq_cpd_alloc,
+	.cpd_init_fn		= bfq_cpd_init,
+	.cpd_bind_fn	       = bfq_cpd_init,
+	.cpd_free_fn		= bfq_cpd_free,
+
+	.pd_alloc_fn		= bfq_pd_alloc,
+	.pd_init_fn		= bfq_pd_init,
+	.pd_offline_fn		= bfq_pd_offline,
+	.pd_free_fn		= bfq_pd_free,
+	.pd_reset_stats_fn	= bfq_pd_reset_stats,
+};
+#endif
 
 static int __init bfq_init(void)
 {
