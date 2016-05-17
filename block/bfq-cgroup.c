@@ -487,13 +487,18 @@ static struct bfq_group *bfq_find_alloc_group(struct bfq_data *bfqd,
 	return bfqg;
 }
 
-static void bfq_pos_tree_add_move(struct bfq_data *bfqd, struct bfq_queue *bfqq);
+static void bfq_pos_tree_add_move(struct bfq_data *bfqd,
+				  struct bfq_queue *bfqq);
+
+static void bfq_bfqq_expire(struct bfq_data *bfqd,
+			    struct bfq_queue *bfqq,
+			    bool compensate,
+			    enum bfqq_expiration reason);
 
 /**
  * bfq_bfqq_move - migrate @bfqq to @bfqg.
  * @bfqd: queue descriptor.
  * @bfqq: the queue to move.
- * @entity: @bfqq's entity.
  * @bfqg: the group to move to.
  *
  * Move @bfqq to @bfqg, deactivating it from its old group and reactivating
@@ -504,26 +509,40 @@ static void bfq_pos_tree_add_move(struct bfq_data *bfqd, struct bfq_queue *bfqq)
  * rcu_read_lock()).
  */
 static void bfq_bfqq_move(struct bfq_data *bfqd, struct bfq_queue *bfqq,
-			  struct bfq_entity *entity, struct bfq_group *bfqg)
+			  struct bfq_group *bfqg)
 {
-	int busy, resume;
+	struct bfq_entity *entity = &bfqq->entity;
 
-	busy = bfq_bfqq_busy(bfqq);
-	resume = !RB_EMPTY_ROOT(&bfqq->sort_list);
-
-	BUG_ON(resume && !entity->on_st);
-	BUG_ON(busy && !resume && entity->on_st &&
+	BUG_ON(!bfq_bfqq_busy(bfqq) && !RB_EMPTY_ROOT(&bfqq->sort_list));
+	BUG_ON(!RB_EMPTY_ROOT(&bfqq->sort_list) && !entity->on_st);
+	BUG_ON(bfq_bfqq_busy(bfqq) && RB_EMPTY_ROOT(&bfqq->sort_list)
+	       && entity->on_st &&
 	       bfqq != bfqd->in_service_queue);
+	BUG_ON(!bfq_bfqq_busy(bfqq) && bfqq == bfqd->in_service_queue);
 
-	if (busy) {
-		BUG_ON(atomic_read(&bfqq->ref) < 2);
+	/* If bfqq is empty, then bfq_bfqq_expire also invokes
+	 * bfq_del_bfqq_busy, thereby removing bfqq and its entity
+	 * from data structures related to current group. Otherwise we
+	 * need to remove bfqq explicitly with bfq_deactivate_bfqq, as
+	 * we do below.
+	 */
+	if (bfqq == bfqd->in_service_queue)
+		bfq_bfqq_expire(bfqd, bfqd->in_service_queue,
+				false, BFQ_BFQQ_PREEMPTED);
 
-		if (!resume)
-			bfq_del_bfqq_busy(bfqd, bfqq, 0);
-		else
-			bfq_deactivate_bfqq(bfqd, bfqq, 0);
-	} else if (entity->on_st)
+	BUG_ON(entity->on_st && !bfq_bfqq_busy(bfqq)
+	    && &bfq_entity_service_tree(entity)->idle !=
+	       entity->tree);
+
+	BUG_ON(RB_EMPTY_ROOT(&bfqq->sort_list) && bfq_bfqq_busy(bfqq));
+
+	if (bfq_bfqq_busy(bfqq))
+		bfq_deactivate_bfqq(bfqd, bfqq, 0);
+	else if (entity->on_st) {
+		BUG_ON(&bfq_entity_service_tree(entity)->idle !=
+		       entity->tree);
 		bfq_put_idle_entity(bfq_entity_service_tree(entity), entity);
+	}
 	bfqg_put(bfqq_group(bfqq));
 
 	/*
@@ -535,14 +554,17 @@ static void bfq_bfqq_move(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 	entity->sched_data = &bfqg->sched_data;
 	bfqg_get(bfqg);
 
-	if (busy) {
+	BUG_ON(RB_EMPTY_ROOT(&bfqq->sort_list) && bfq_bfqq_busy(bfqq));
+	if (bfq_bfqq_busy(bfqq)) {
 		bfq_pos_tree_add_move(bfqd, bfqq);
-		if (resume)
-			bfq_activate_bfqq(bfqd, bfqq);
+		bfq_activate_bfqq(bfqd, bfqq);
 	}
 
 	if (!bfqd->in_service_queue && !bfqd->rq_in_driver)
 		bfq_schedule_dispatch(bfqd);
+	BUG_ON(entity->on_st && !bfq_bfqq_busy(bfqq)
+	       && &bfq_entity_service_tree(entity)->idle !=
+	       entity->tree);
 }
 
 /**
@@ -586,7 +608,7 @@ static struct bfq_group *__bfq_bic_change_cgroup(struct bfq_data *bfqd,
 	if (sync_bfqq) {
 		entity = &sync_bfqq->entity;
 		if (entity->sched_data != &bfqg->sched_data)
-			bfq_bfqq_move(bfqd, sync_bfqq, entity, bfqg);
+			bfq_bfqq_move(bfqd, sync_bfqq, bfqg);
 	}
 
 	return bfqg;
@@ -636,7 +658,7 @@ static void bfq_reparent_leaf_entity(struct bfq_data *bfqd,
 	struct bfq_queue *bfqq = bfq_entity_to_bfqq(entity);
 
 	BUG_ON(!bfqq);
-	bfq_bfqq_move(bfqd, bfqq, entity, bfqd->root_group);
+	bfq_bfqq_move(bfqd, bfqq, bfqd->root_group);
 	return;
 }
 
@@ -1120,7 +1142,6 @@ bfq_bic_update_cgroup(struct bfq_io_cq *bic, struct bio *bio)
 
 static void bfq_bfqq_move(struct bfq_data *bfqd,
 			  struct bfq_queue *bfqq,
-			  struct bfq_entity *entity,
 			  struct bfq_group *bfqg)
 {
 }
