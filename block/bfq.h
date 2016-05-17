@@ -401,7 +401,6 @@ enum bfq_device_speed {
  * @wr_busy_queues: number of weight-raised busy @bfq_queues.
  * @queued: number of queued requests.
  * @rq_in_driver: number of requests dispatched and waiting for completion.
- * @sync_flight: number of sync requests in the driver.
  * @max_rq_in_driver: max number of reqs in driver in the last
  *                    @hw_tag_samples completed requests.
  * @hw_tag_samples: nr of samples used to calculate hw_tag.
@@ -428,8 +427,6 @@ enum bfq_device_speed {
  * @bfq_slice_idle: maximum idling time.
  * @bfq_user_max_budget: user-configured max budget value
  *                       (0 for auto-tuning).
- * @bfq_max_budget_async_rq: maximum budget (in nr of requests) allotted to
- *                           async queues.
  * @bfq_timeout: timeout for bfq_queues to consume their budget; used to
  *               to prevent seeky queues to impose long latencies to well
  *               behaved ones (this also implies that seeky queues cannot
@@ -501,7 +498,6 @@ struct bfq_data {
 	int wr_busy_queues;
 	int queued;
 	int rq_in_driver;
-	int sync_flight;
 
 	int max_rq_in_driver;
 	int hw_tag_samples;
@@ -533,8 +529,7 @@ struct bfq_data {
 	u64 bfq_class_idle_last_service;
 
 	int bfq_user_max_budget;
-	int bfq_max_budget_async_rq;
-	unsigned int bfq_timeout[2];
+	unsigned int bfq_timeout;
 
 	unsigned int bfq_coop_thresh;
 	unsigned int bfq_failed_cooperations;
