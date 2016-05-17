@@ -87,7 +87,6 @@ static const int bfq_stats_min_budgets = 194;
 
 /* Default maximum budget values, in sectors and number of requests. */
 static const int bfq_default_max_budget = 16 * 1024;
-static const int bfq_max_budget_async_rq = 4;
 
 /*
  * Async to sync throughput distribution is controlled as follows:
@@ -97,8 +96,7 @@ static const int bfq_max_budget_async_rq = 4;
 static const int bfq_async_charge_factor = 10;
 
 /* Default timeout values, in jiffies, approximating CFQ defaults. */
-static const int bfq_timeout_sync = HZ / 8;
-static int bfq_timeout_async = HZ / 25;
+static const int bfq_timeout = HZ / 8;
 
 struct kmem_cache *bfq_pool;
 
@@ -1759,11 +1757,10 @@ static void bfq_set_budget_timeout(struct bfq_data *bfqd)
 
 	bfq_clear_bfqq_budget_new(bfqq);
 	bfqq->budget_timeout = jiffies +
-		bfqd->bfq_timeout[bfq_bfqq_sync(bfqq)] * timeout_coeff;
+		bfqd->bfq_timeout * timeout_coeff;
 
 	bfq_log_bfqq(bfqd, bfqq, "set budget_timeout %u",
-		jiffies_to_msecs(bfqd->bfq_timeout[bfq_bfqq_sync(bfqq)] *
-		timeout_coeff));
+		jiffies_to_msecs(bfqd->bfq_timeout * timeout_coeff));
 }
 
 /*
@@ -1771,7 +1768,6 @@ static void bfq_set_budget_timeout(struct bfq_data *bfqd)
  */
 static void bfq_dispatch_insert(struct request_queue *q, struct request *rq)
 {
-	struct bfq_data *bfqd = q->elevator->elevator_data;
 	struct bfq_queue *bfqq = RQ_BFQQ(rq);
 
 	/*
@@ -1787,9 +1783,6 @@ static void bfq_dispatch_insert(struct request_queue *q, struct request *rq)
 	bfqq->dispatched++;
 	bfq_remove_request(rq);
 	elv_dispatch_sort(q, rq);
-
-	if (bfq_bfqq_sync(bfqq))
-		bfqd->sync_flight++;
 }
 
 /*
@@ -1957,7 +1950,7 @@ static void __bfq_bfqq_recalc_budget(struct bfq_data *bfqd,
 		/*
 		 * Async queues get always the maximum possible budget
 		 * (their ability to dispatch is limited by
-		 * @bfqd->bfq_max_budget_async_rq).
+		 * the charging factor).
 		 */
 		budget = bfqd->bfq_max_budget;
 
@@ -1991,7 +1984,7 @@ static unsigned long bfq_calc_max_budget(u64 peak_rate, u64 timeout)
 
 	/*
 	 * The max_budget calculated when autotuning is equal to the
-	 * amount of sectors transfered in timeout_sync at the
+	 * amount of sectors transferred in timeout at the
 	 * estimated peak rate.
 	 */
 	max_budget = (unsigned long)(peak_rate * 1000 *
@@ -2037,7 +2030,7 @@ static bool bfq_update_peak_rate(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 	bw = (u64)bfqq->entity.service << BFQ_RATE_SHIFT;
 	do_div(bw, (unsigned long)usecs);
 
-	timeout = jiffies_to_msecs(bfqd->bfq_timeout[BLK_RW_SYNC]);
+	timeout = jiffies_to_msecs(bfqd->bfq_timeout);
 
 	/*
 	 * Use only long (> 20ms) intervals to filter out spikes for
@@ -2818,9 +2811,7 @@ static int bfq_dispatch_request(struct bfq_data *bfqd,
 		bfqd->in_service_bic = RQ_BIC(rq);
 	}
 
-	if (bfqd->busy_queues > 1 && ((!bfq_bfqq_sync(bfqq) &&
-	    dispatched >= bfqd->bfq_max_budget_async_rq) ||
-	    bfq_class_idle(bfqq)))
+	if (bfqd->busy_queues > 1 && bfq_class_idle(bfqq))
 		goto expire;
 
 	return dispatched;
@@ -2880,7 +2871,6 @@ static int bfq_dispatch_requests(struct request_queue *q, int force)
 {
 	struct bfq_data *bfqd = q->elevator->elevator_data;
 	struct bfq_queue *bfqq;
-	int max_dispatch;
 
 	bfq_log(bfqd, "dispatch requests: %d busy queues", bfqd->busy_queues);
 	if (bfqd->busy_queues == 0)
@@ -2891,19 +2881,6 @@ static int bfq_dispatch_requests(struct request_queue *q, int force)
 
 	bfqq = bfq_select_queue(bfqd);
 	if (!bfqq)
-		return 0;
-
-	if (!bfq_bfqq_sync(bfqq))
-		max_dispatch = bfqd->bfq_max_budget_async_rq;
-
-	if (!bfq_bfqq_sync(bfqq) && bfqq->dispatched >= max_dispatch) {
-		if (bfqd->busy_queues > 1)
-			return 0;
-		if (bfqq->dispatched >= 4 * max_dispatch)
-			return 0;
-	}
-
-	if (bfqd->sync_flight != 0 && !bfq_bfqq_sync(bfqq))
 		return 0;
 
 	bfq_clear_bfqq_wait_request(bfqq);
@@ -3564,10 +3541,7 @@ static void bfq_completed_request(struct request_queue *q, struct request *rq)
 		}
 	}
 
-	if (sync) {
-		bfqd->sync_flight--;
-		RQ_BIC(rq)->ttime.last_end_request = jiffies;
-	}
+	RQ_BIC(rq)->ttime.last_end_request = jiffies;
 
 	/*
 	 * If we are waiting to discover whether the request pattern of the
@@ -4001,9 +3975,7 @@ static int bfq_init_queue(struct request_queue *q, struct elevator_type *e)
 	bfqd->bfq_back_penalty = bfq_back_penalty;
 	bfqd->bfq_slice_idle = bfq_slice_idle;
 	bfqd->bfq_class_idle_last_service = 0;
-	bfqd->bfq_max_budget_async_rq = bfq_max_budget_async_rq;
-	bfqd->bfq_timeout[BLK_RW_ASYNC] = bfq_timeout_async;
-	bfqd->bfq_timeout[BLK_RW_SYNC] = bfq_timeout_sync;
+	bfqd->bfq_timeout = bfq_timeout;
 
 	bfqd->bfq_coop_thresh = 2;
 	bfqd->bfq_failed_cooperations = 7000;
@@ -4139,10 +4111,7 @@ SHOW_FUNCTION(bfq_back_seek_max_show, bfqd->bfq_back_max, 0);
 SHOW_FUNCTION(bfq_back_seek_penalty_show, bfqd->bfq_back_penalty, 0);
 SHOW_FUNCTION(bfq_slice_idle_show, bfqd->bfq_slice_idle, 1);
 SHOW_FUNCTION(bfq_max_budget_show, bfqd->bfq_user_max_budget, 0);
-SHOW_FUNCTION(bfq_max_budget_async_rq_show,
-	      bfqd->bfq_max_budget_async_rq, 0);
-SHOW_FUNCTION(bfq_timeout_sync_show, bfqd->bfq_timeout[BLK_RW_SYNC], 1);
-SHOW_FUNCTION(bfq_timeout_async_show, bfqd->bfq_timeout[BLK_RW_ASYNC], 1);
+SHOW_FUNCTION(bfq_timeout_sync_show, bfqd->bfq_timeout, 1);
 SHOW_FUNCTION(bfq_low_latency_show, bfqd->low_latency, 0);
 SHOW_FUNCTION(bfq_wr_coeff_show, bfqd->bfq_wr_coeff, 0);
 SHOW_FUNCTION(bfq_wr_rt_max_time_show, bfqd->bfq_wr_rt_max_time, 1);
@@ -4177,10 +4146,6 @@ STORE_FUNCTION(bfq_back_seek_max_store, &bfqd->bfq_back_max, 0, INT_MAX, 0);
 STORE_FUNCTION(bfq_back_seek_penalty_store, &bfqd->bfq_back_penalty, 1,
 		INT_MAX, 0);
 STORE_FUNCTION(bfq_slice_idle_store, &bfqd->bfq_slice_idle, 0, INT_MAX, 1);
-STORE_FUNCTION(bfq_max_budget_async_rq_store, &bfqd->bfq_max_budget_async_rq,
-		1, INT_MAX, 0);
-STORE_FUNCTION(bfq_timeout_async_store, &bfqd->bfq_timeout[BLK_RW_ASYNC], 0,
-		INT_MAX, 1);
 STORE_FUNCTION(bfq_wr_coeff_store, &bfqd->bfq_wr_coeff, 1, INT_MAX, 0);
 STORE_FUNCTION(bfq_wr_max_time_store, &bfqd->bfq_wr_max_time, 0, INT_MAX, 1);
 STORE_FUNCTION(bfq_wr_rt_max_time_store, &bfqd->bfq_wr_rt_max_time, 0, INT_MAX,
@@ -4202,7 +4167,7 @@ static ssize_t bfq_weights_store(struct elevator_queue *e,
 
 static unsigned long bfq_estimated_max_budget(struct bfq_data *bfqd)
 {
-	u64 timeout = jiffies_to_msecs(bfqd->bfq_timeout[BLK_RW_SYNC]);
+	u64 timeout = jiffies_to_msecs(bfqd->bfq_timeout);
 
 	if (bfqd->peak_rate_samples >= BFQ_PEAK_RATE_SAMPLES)
 		return bfq_calc_max_budget(bfqd->peak_rate, timeout);
@@ -4230,6 +4195,10 @@ static ssize_t bfq_max_budget_store(struct elevator_queue *e,
 	return ret;
 }
 
+/*
+ * Leaving this name to preserve name compatibility with cfq
+ * parameters, but this timeout is used for both sync and async.
+ */
 static ssize_t bfq_timeout_sync_store(struct elevator_queue *e,
 				      const char *page, size_t count)
 {
@@ -4242,7 +4211,7 @@ static ssize_t bfq_timeout_sync_store(struct elevator_queue *e,
 	else if (__data > INT_MAX)
 		__data = INT_MAX;
 
-	bfqd->bfq_timeout[BLK_RW_SYNC] = msecs_to_jiffies(__data);
+	bfqd->bfq_timeout = msecs_to_jiffies(__data);
 	if (bfqd->bfq_user_max_budget == 0)
 		bfqd->bfq_max_budget = bfq_estimated_max_budget(bfqd);
 
@@ -4275,9 +4244,7 @@ static struct elv_fs_entry bfq_attrs[] = {
 	BFQ_ATTR(back_seek_penalty),
 	BFQ_ATTR(slice_idle),
 	BFQ_ATTR(max_budget),
-	BFQ_ATTR(max_budget_async_rq),
 	BFQ_ATTR(timeout_sync),
-	BFQ_ATTR(timeout_async),
 	BFQ_ATTR(low_latency),
 	BFQ_ATTR(wr_coeff),
 	BFQ_ATTR(wr_max_time),
@@ -4347,9 +4314,6 @@ static int __init bfq_init(void)
 	 */
 	if (bfq_slice_idle == 0)
 		bfq_slice_idle = 1;
-
-	if (bfq_timeout_async == 0)
-		bfq_timeout_async = 1;
 
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
 	ret = blkcg_policy_register(&blkcg_policy_bfq);
