@@ -2893,9 +2893,6 @@ static int bfq_dispatch_requests(struct request_queue *q, int force)
 	if (!bfqq)
 		return 0;
 
-	if (bfq_class_idle(bfqq))
-		max_dispatch = 1;
-
 	if (!bfq_bfqq_sync(bfqq))
 		max_dispatch = bfqd->bfq_max_budget_async_rq;
 
