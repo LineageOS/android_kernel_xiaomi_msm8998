@@ -151,11 +151,16 @@ static u64 bfq_delta(unsigned long service, unsigned long weight)
 static void bfq_calc_finish(struct bfq_entity *entity, unsigned long service)
 {
 	struct bfq_queue *bfqq = bfq_entity_to_bfqq(entity);
+	unsigned long long start, finish, delta;
 
 	BUG_ON(entity->weight == 0);
 
 	entity->finish = entity->start +
 		bfq_delta(service, entity->weight);
+
+	start = (((entity->start>>10)*1000)>>10)>>2;
+	finish = (((entity->finish>>10)*1000)>>10)>>2;
+	delta = (((bfq_delta(service, entity->weight)>>10)*1000)>>10)>>2;
 
 	if (bfqq) {
 		bfq_log_bfqq(bfqq->bfqd, bfqq,
@@ -163,8 +168,17 @@ static void bfq_calc_finish(struct bfq_entity *entity, unsigned long service)
 			service, entity->weight);
 		bfq_log_bfqq(bfqq->bfqd, bfqq,
 			"calc_finish: start %llu, finish %llu, delta %llu",
-			entity->start, entity->finish,
-			bfq_delta(service, entity->weight));
+			start, finish, delta);
+	} else {
+		struct bfq_group *bfqg =
+			container_of(entity, struct bfq_group, entity);
+
+		bfq_log_bfqg((struct bfq_data *)bfqg->bfqd, bfqg,
+			"calc_finish group: serv %lu, w %d",
+			service, entity->weight);
+		bfq_log_bfqg((struct bfq_data *)bfqg->bfqd, bfqg,
+			"calc_finish group: start %llu, finish %llu, delta %llu",
+			start, finish, delta);
 	}
 }
 
