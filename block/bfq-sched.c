@@ -628,10 +628,12 @@ __bfq_entity_update_weight_prio(struct bfq_service_tree *old_st,
 		if (entity->new_weight != entity->orig_weight) {
 			if (entity->new_weight < BFQ_MIN_WEIGHT ||
 			    entity->new_weight > BFQ_MAX_WEIGHT) {
-				printk(KERN_CRIT "update_weight_prio: "
-						 "new_weight %d\n",
+				pr_crit("update_weight_prio: new_weight %d\n",
 					entity->new_weight);
-				BUG();
+				if (entity->new_weight < BFQ_MIN_WEIGHT)
+					entity->new_weight = BFQ_MIN_WEIGHT;
+				else
+					entity->new_weight = BFQ_MAX_WEIGHT;
 			}
 			entity->orig_weight = entity->new_weight;
 			if (bfqq)
@@ -997,8 +999,8 @@ left:
  * Update the virtual time in @st and return the first eligible entity
  * it contains.
  */
-static struct bfq_entity *__bfq_lookup_next_entity(struct bfq_service_tree *st,
-						   bool force)
+static struct bfq_entity *
+__bfq_lookup_next_entity(struct bfq_service_tree *st, bool force)
 {
 	struct bfq_entity *entity, *new_next_in_service = NULL;
 
@@ -1045,7 +1047,8 @@ static struct bfq_entity *bfq_lookup_next_entity(struct bfq_sched_data *sd,
 	BUG_ON(sd->in_service_entity);
 
 	if (bfqd &&
-	    jiffies - bfqd->bfq_class_idle_last_service > BFQ_CL_IDLE_TIMEOUT) {
+	    jiffies - bfqd->bfq_class_idle_last_service >
+	    BFQ_CL_IDLE_TIMEOUT) {
 		entity = __bfq_lookup_next_entity(st + BFQ_IOPRIO_CLASSES - 1,
 						  true);
 		if (entity) {
@@ -1163,9 +1166,7 @@ static void bfq_del_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 	if (bfqq->wr_coeff > 1)
 		bfqd->wr_busy_queues--;
 
-#ifdef CONFIG_BFQ_GROUP_IOSCHED
 	bfqg_stats_update_dequeue(bfqq_group(bfqq));
-#endif
 
 	bfq_deactivate_bfqq(bfqd, bfqq, requeue);
 }

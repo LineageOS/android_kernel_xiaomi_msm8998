@@ -303,7 +303,7 @@ struct bfq_ttime {
  * @bfqq: array of two process queues, the sync and the async
  * @ttime: associated @bfq_ttime struct
  * @ioprio: per (request_queue, blkcg) ioprio.
- * @blkcg_id: id of the blkcg the related io_cq belongs to.
+ * @blkcg_serial: serial of the blkcg the related io_cq belongs to.
  * @wr_time_left: snapshot of the time left before weight raising ends
  *                for the sync queue associated to this process; this
  *		  snapshot is taken to remember this value while the weight
@@ -332,7 +332,7 @@ struct bfq_io_cq {
 	int ioprio;
 
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
-	uint64_t blkcg_id; /* the current blkcg ID */
+	uint64_t blkcg_serial_nr; /* the current blkcg serial */
 #endif
 
 	unsigned int wr_time_left;
