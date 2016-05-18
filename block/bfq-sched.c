@@ -48,6 +48,7 @@ static void bfq_update_budget(struct bfq_entity *next_in_service)
 static int bfq_update_next_in_service(struct bfq_sched_data *sd)
 {
 	struct bfq_entity *next_in_service;
+	struct bfq_queue *bfqq;
 
 	if (sd->in_service_entity)
 		/* will update/requeue at the end of service */
@@ -65,7 +66,23 @@ static int bfq_update_next_in_service(struct bfq_sched_data *sd)
 
 	if (next_in_service)
 		bfq_update_budget(next_in_service);
+	else
+		goto exit;
 
+	bfqq = bfq_entity_to_bfqq(next_in_service);
+	if (bfqq)
+		bfq_log_bfqq(bfqq->bfqd, bfqq,
+			     "update_next_in_service: chosen this queue");
+	else {
+		struct bfq_group *bfqg =
+			container_of(next_in_service,
+				     struct bfq_group, entity);
+
+		bfq_log_bfqg((struct bfq_data *)bfqg->bfqd, bfqg,
+			     "update_next_in_service: chosen this entity");
+	}
+
+exit:
 	return 1;
 }
 
@@ -770,6 +787,8 @@ static void __bfq_activate_entity(struct bfq_entity *entity)
 	struct bfq_sched_data *sd = entity->sched_data;
 	struct bfq_service_tree *st = bfq_entity_service_tree(entity);
 
+	BUG_ON(!sd);
+	BUG_ON(!st);
 	if (entity == sd->in_service_entity) {
 		BUG_ON(entity->tree);
 		/*
@@ -825,6 +844,7 @@ static void bfq_activate_entity(struct bfq_entity *entity)
 	struct bfq_sched_data *sd;
 
 	for_each_entity(entity) {
+		BUG_ON(!entity);
 		__bfq_activate_entity(entity);
 
 		sd = entity->sched_data;
@@ -932,9 +952,21 @@ static void bfq_deactivate_entity(struct bfq_entity *entity, int requeue)
 update:
 	entity = parent;
 	for_each_entity(entity) {
+		struct bfq_queue *bfqq = bfq_entity_to_bfqq(entity);
 		__bfq_activate_entity(entity);
 
 		sd = entity->sched_data;
+		if (bfqq)
+			bfq_log_bfqq(bfqq->bfqd, bfqq,
+				     "invoking udpdate_:next for this queue");
+		else {
+			struct bfq_group *bfqg =
+				container_of(entity,
+					     struct bfq_group, entity);
+
+			bfq_log_bfqg((struct bfq_data *)bfqg->bfqd, bfqg,
+				     "invoking udpdate_:next for this entity");
+		}
 		if (!bfq_update_next_in_service(sd))
 			break;
 	}
@@ -1103,7 +1135,30 @@ static struct bfq_queue *bfq_get_next_queue(struct bfq_data *bfqd)
 
 	sd = &bfqd->root_group->sched_data;
 	for (; sd ; sd = entity->my_sched_data) {
+		if (entity) {
+			struct bfq_group *bfqg =
+				container_of(entity, struct bfq_group, entity);
+
+			bfq_log_bfqg(bfqd, bfqg,
+				     "get_next_queue: lookup in this group");
+		} else
+			bfq_log_bfqg(bfqd, bfqd->root_group,
+				     "get_next_queue: lookup in root group");
+
 		entity = bfq_lookup_next_entity(sd, 1, bfqd);
+
+		bfqq = bfq_entity_to_bfqq(entity);
+		if (bfqq)
+			bfq_log_bfqq(bfqd, bfqq,
+				     "get_next_queue: returned this queue");
+		else {
+			struct bfq_group *bfqg =
+				container_of(entity, struct bfq_group, entity);
+
+			bfq_log_bfqg(bfqd, bfqg,
+				     "get_next_queue: returned this entity");
+		}
+
 		BUG_ON(!entity);
 		entity->service = 0;
 	}
