@@ -396,11 +396,18 @@ static struct blkg_policy_data *bfq_pd_alloc(gfp_t gfp, int node)
 
 static void bfq_pd_init(struct blkg_policy_data *pd)
 {
-	struct blkcg_gq *blkg = pd_to_blkg(pd);
-	struct bfq_group *bfqg = blkg_to_bfqg(blkg);
-	struct bfq_data *bfqd = blkg->q->elevator->elevator_data;
-	struct bfq_entity *entity = &bfqg->entity;
-	struct bfq_group_data *d = blkcg_to_bfqgd(blkg->blkcg);
+	struct blkcg_gq *blkg;
+	struct bfq_group *bfqg;
+	struct bfq_data *bfqd;
+	struct bfq_entity *entity;
+	struct bfq_group_data *d;
+
+	blkg = pd_to_blkg(pd);
+	BUG_ON(!blkg);
+	bfqg = blkg_to_bfqg(blkg);
+	bfqd = blkg->q->elevator->elevator_data;
+	entity = &bfqg->entity;
+	d = blkcg_to_bfqgd(blkg->blkcg);
 
 	entity->orig_weight = entity->weight = entity->new_weight = d->weight;
 	entity->my_sched_data = &bfqg->sched_data;
@@ -771,6 +778,7 @@ static void bfq_end_wr_async(struct bfq_data *bfqd)
 
 	list_for_each_entry(blkg, &bfqd->queue->blkg_list, q_node) {
 		struct bfq_group *bfqg = blkg_to_bfqg(blkg);
+		BUG_ON(!bfqg);
 
 		bfq_end_wr_async_queues(bfqd, bfqg);
 	}
