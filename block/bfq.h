@@ -60,7 +60,9 @@ struct bfq_service_tree {
 /**
  * struct bfq_sched_data - multi-class scheduler.
  * @in_service_entity: entity in service.
- * @next_in_service: head-of-the-line entity in the scheduler.
+ * @next_in_service: head-of-the-line entity in the scheduler, used to reduce
+ *		     the number of steps needed for each hierarchical-schedule
+ *		     update.
  * @service_tree: array of service trees, one per ioprio_class.
  *
  * bfq_sched_data is the basic scheduler queue.  It supports three

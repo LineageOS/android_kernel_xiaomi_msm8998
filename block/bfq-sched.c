@@ -89,7 +89,7 @@ exit:
 static void bfq_check_next_in_service(struct bfq_sched_data *sd,
 				      struct bfq_entity *entity)
 {
-	BUG_ON(sd->next_in_service != entity);
+	WARN_ON(sd->next_in_service != entity);
 }
 #else
 #define for_each_entity(entity)	\
@@ -926,17 +926,18 @@ static void bfq_deactivate_entity(struct bfq_entity *entity, int requeue)
 
 		if (!__bfq_deactivate_entity(entity, requeue))
 			/*
-			 * The parent entity is still backlogged, and
-			 * we don't need to update it as it is still
-			 * in service.
+			 * next_in_service has not been changed, so
+			 * no upwards update is needed
 			 */
 			break;
 
 		if (sd->next_in_service)
 			/*
-			 * The parent entity is still backlogged and
-			 * the budgets on the path towards the root
-			 * need to be updated.
+			 * The parent entity is still backlogged,
+			 * because next_in_service is not NULL, and
+			 * next_in_service has been updated (see
+			 * comment on the body of the above if):
+			 * upwards update of the schedule is needed.
 			 */
 			goto update;
 
