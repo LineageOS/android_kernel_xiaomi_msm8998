@@ -532,9 +532,19 @@ static struct request *bfq_find_next_rq(struct bfq_data *bfqd,
 static unsigned long bfq_serv_to_charge(struct request *rq,
 					struct bfq_queue *bfqq)
 {
-	return blk_rq_sectors(rq) *
-		(1 + ((!bfq_bfqq_sync(bfqq)) * (bfqq->wr_coeff == 1) *
-		bfq_async_charge_factor));
+	if (bfq_bfqq_sync(bfqq) || bfqq->wr_coeff > 1)
+		return blk_rq_sectors(rq);
+
+	/*
+	 * If there are no weight-raised queues, then amplify service
+	 * by just the async charge factor; otherwise amplify service
+	 * by twice the async charge factor, to further reduce latency
+	 * for weight-raised queues.
+	 */
+	if (bfqq->bfqd->wr_busy_queues == 0)
+		return blk_rq_sectors(rq) * bfq_async_charge_factor;
+
+	return blk_rq_sectors(rq) * 2 * bfq_async_charge_factor;
 }
 
 /**
