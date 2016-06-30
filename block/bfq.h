@@ -455,6 +455,7 @@ enum bfq_device_speed {
  *                      queue has been activated shortly after
  *                      @last_ins_in_burst.
  * @burst_size: number of queues in the current burst of queue activations.
+ * @burst_parent_entity: common parent entity of the queues in the burst.
  * @bfq_large_burst_thresh: maximum burst size above which the current
  * 			    queue-activation burst is deemed as 'large'.
  * @large_burst: true if a large queue-activation burst is in progress.
@@ -534,6 +535,7 @@ struct bfq_data {
 	unsigned long last_ins_in_burst;
 	unsigned long bfq_burst_interval;
 	int burst_size;
+	struct bfq_entity *burst_parent_entity;
 	unsigned long bfq_large_burst_thresh;
 	bool large_burst;
 	struct hlist_head burst_list;
@@ -554,7 +556,8 @@ struct bfq_data {
 };
 
 enum bfqq_state_flags {
-	BFQ_BFQQ_FLAG_busy = 0,		/* has requests or is in service */
+	BFQ_BFQQ_FLAG_just_created = 0,	/* queue just allocated */
+	BFQ_BFQQ_FLAG_busy,		/* has requests or is in service */
 	BFQ_BFQQ_FLAG_wait_request,	/* waiting for a request */
 	BFQ_BFQQ_FLAG_non_blocking_wait_rq, /*
 					     * waiting for a request
@@ -601,6 +604,7 @@ static int bfq_bfqq_##name(const struct bfq_queue *bfqq)		\
 	return ((bfqq)->flags & (1 << BFQ_BFQQ_FLAG_##name)) != 0;	\
 }
 
+BFQ_BFQQ_FNS(just_created);
 BFQ_BFQQ_FNS(busy);
 BFQ_BFQQ_FNS(wait_request);
 BFQ_BFQQ_FNS(non_blocking_wait_rq);
