@@ -108,8 +108,9 @@ struct kmem_cache *bfq_pool;
 #define BFQ_HW_QUEUE_THRESHOLD	4
 #define BFQ_HW_QUEUE_SAMPLES	32
 
-#define BFQQ_SEEK_THR	 (sector_t)(8 * 1024)
-#define BFQQ_SEEKY(bfqq) ((bfqq)->seek_mean > BFQQ_SEEK_THR)
+#define BFQQ_SEEK_THR		(sector_t)(8 * 100)
+#define BFQQ_CLOSE_THR		(sector_t)(8 * 1024)
+#define BFQQ_SEEKY(bfqq)	(hweight32(bfqq->seek_history) > 32/8)
 
 /* Min samples used for peak rate estimation (for autotuning). */
 #define BFQ_PEAK_RATE_SAMPLES	32
@@ -1634,7 +1635,7 @@ static int bfq_rq_close_to_sector(void *io_struct, bool request,
 				  sector_t sector)
 {
 	return abs(bfq_io_struct_pos(io_struct, request) - sector) <=
-	       BFQQ_SEEK_THR;
+	       BFQQ_CLOSE_THR;
 }
 
 static struct bfq_queue *bfqq_find_close(struct bfq_data *bfqd,
@@ -2119,14 +2120,10 @@ static void bfq_arm_slice_timer(struct bfq_data *bfqd)
 	sl = bfqd->bfq_slice_idle;
 	/*
 	 * Unless the queue is being weight-raised or the scenario is
-	 * asymmetric, grant only minimum idle time if the queue either
-	 * has been seeky for long enough or has already proved to be
-	 * constantly seeky.
+	 * asymmetric, grant only minimum idle time if the queue is
+	 * seeky.
 	 */
-	if (bfq_sample_valid(bfqq->seek_samples) &&
-	    ((BFQQ_SEEKY(bfqq) && bfqq->entity.service >
-				  bfq_max_budget(bfqq->bfqd) / 8) ||
-	      bfq_bfqq_constantly_seeky(bfqq)) && bfqq->wr_coeff == 1 &&
+	if (BFQQ_SEEKY(bfqq) && bfqq->wr_coeff == 1 &&
 	    bfq_symmetric_scenario(bfqd))
 		sl = min(sl, msecs_to_jiffies(BFQ_MIN_TT));
 
@@ -2824,7 +2821,6 @@ static bool bfq_bfqq_may_idle(struct bfq_queue *bfqq)
 {
 	struct bfq_data *bfqd = bfqq->bfqd;
 	bool idling_boosts_thr, idling_boosts_thr_without_issues,
-		all_queues_seeky, on_hdd_and_not_all_queues_seeky,
 		idling_needed_for_service_guarantees,
 		asymmetric_scenario;
 
@@ -2890,74 +2886,27 @@ static bool bfq_bfqq_may_idle(struct bfq_queue *bfqq)
 		bfqd->wr_busy_queues == 0;
 
 	/*
-	 * There are then two cases where idling must be performed not
+	 * There is then a case where idling must be performed not
 	 * for throughput concerns, but to preserve service
-	 * guarantees. In the description of these cases, we say, for
-	 * short, that a queue is sequential/random if the process
-	 * associated to the queue issues sequential/random requests
-	 * (in the second case the queue may be tagged as seeky or
-	 * even constantly_seeky).
+	 * guarantees.
 	 *
-	 * To introduce the first case, we note that, since
-	 * bfq_bfqq_idle_window(bfqq) is false if the device is
-	 * NCQ-capable and bfqq is random (see
-	 * bfq_update_idle_window()), then, from the above two
-	 * assignments it follows that
-	 * idling_boosts_thr_without_issues is false if the device is
-	 * NCQ-capable and bfqq is random. Therefore, for this case,
-	 * device idling would never be allowed if we used just
-	 * idling_boosts_thr_without_issues to decide whether to allow
-	 * it. And, beneficially, this would imply that throughput
-	 * would always be boosted also with random I/O on NCQ-capable
-	 * HDDs.
-	 *
-	 * But we must be careful on this point, to avoid an unfair
-	 * treatment for bfqq. In fact, because of the same above
-	 * assignments, idling_boosts_thr_without_issues is, on the
-	 * other hand, true if 1) the device is an HDD and bfqq is
-	 * sequential, and 2) there are no busy weight-raised
-	 * queues. As a consequence, if we used just
-	 * idling_boosts_thr_without_issues to decide whether to idle
-	 * the device, then with an HDD we might easily bump into a
-	 * scenario where queues that are sequential and I/O-bound
-	 * would enjoy idling, whereas random queues would not. The
-	 * latter might then get a low share of the device throughput,
-	 * simply because the former would get many requests served
-	 * after being set as in service, while the latter would not.
-	 *
-	 * To address this issue, we start by setting to true a
-	 * sentinel variable, on_hdd_and_not_all_queues_seeky, if the
-	 * device is rotational and not all queues with pending or
-	 * in-flight requests are constantly seeky (i.e., there are
-	 * active sequential queues, and bfqq might then be mistreated
-	 * if it does not enjoy idling because it is random).
-	 */
-	all_queues_seeky = bfq_bfqq_constantly_seeky(bfqq) &&
-			   bfqd->busy_in_flight_queues ==
-			   bfqd->const_seeky_busy_in_flight_queues;
-
-	on_hdd_and_not_all_queues_seeky =
-		!blk_queue_nonrot(bfqd->queue) && !all_queues_seeky;
-
-	/*
-	 * To introduce the second case where idling needs to be
-	 * performed to preserve service guarantees, we can note that
-	 * allowing the drive to enqueue more than one request at a
-	 * time, and hence delegating de facto final scheduling
-	 * decisions to the drive's internal scheduler, causes loss of
-	 * control on the actual request service order. In particular,
-	 * the critical situation is when requests from different
-	 * processes happens to be present, at the same time, in the
-	 * internal queue(s) of the drive. In such a situation, the
-	 * drive, by deciding the service order of the
-	 * internally-queued requests, does determine also the actual
-	 * throughput distribution among these processes. But the
-	 * drive typically has no notion or concern about per-process
-	 * throughput distribution, and makes its decisions only on a
-	 * per-request basis. Therefore, the service distribution
-	 * enforced by the drive's internal scheduler is likely to
-	 * coincide with the desired device-throughput distribution
-	 * only in a completely symmetric scenario where:
+	 * To introduce this case, we can note that allowing the drive
+	 * to enqueue more than one request at a time, and hence
+	 * delegating de facto final scheduling decisions to the
+	 * drive's internal scheduler, entails loss of control on the
+	 * actual request service order. In particular, the critical
+	 * situation is when requests from different processes happen
+	 * to be present, at the same time, in the internal queue(s)
+	 * of the drive. In such a situation, the drive, by deciding
+	 * the service order of the internally-queued requests, does
+	 * determine also the actual throughput distribution among
+	 * these processes. But the drive typically has no notion or
+	 * concern about per-process throughput distribution, and
+	 * makes its decisions only on a per-request basis. Therefore,
+	 * the service distribution enforced by the drive's internal
+	 * scheduler is likely to coincide with the desired
+	 * device-throughput distribution only in a completely
+	 * symmetric scenario where:
 	 * (i)  each of these processes must get the same throughput as
 	 *      the others;
 	 * (ii) all these processes have the same I/O pattern
@@ -3064,8 +3013,7 @@ static bool bfq_bfqq_may_idle(struct bfq_queue *bfqq)
 	 * service guarantees.
 	 */
 	idling_needed_for_service_guarantees =
-		(on_hdd_and_not_all_queues_seeky || asymmetric_scenario) &&
-		!bfq_bfqq_in_large_burst(bfqq);
+		asymmetric_scenario && !bfq_bfqq_in_large_burst(bfqq);
 
 	/*
 	 * We have now all the components we need to compute the return
@@ -3602,7 +3550,10 @@ static void bfq_init_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 	 * Set to the value for which bfqq will not be deemed as
 	 * soft rt when it becomes backlogged.
 	 */
-	bfqq->soft_rt_next_start = bfq_infinity_from_now(jiffies);
+	bfqq->soft_rt_next_start = bfq_greatest_from_now();
+
+	/* first request is almost certainly seeky */
+	bfqq->seek_history = 1;
 }
 
 static struct bfq_queue *bfq_find_alloc_queue(struct bfq_data *bfqd,
@@ -3740,37 +3691,22 @@ static void bfq_update_io_thinktime(struct bfq_data *bfqd,
 				bic->ttime.ttime_samples;
 }
 
-static void bfq_update_io_seektime(struct bfq_data *bfqd,
-				   struct bfq_queue *bfqq,
-				   struct request *rq)
+
+static void
+bfq_update_io_seektime(struct bfq_data *bfqd, struct bfq_queue *bfqq,
+		       struct request *rq)
 {
-	sector_t sdist;
-	u64 total;
+	sector_t sdist = 0;
 
-	if (bfqq->last_request_pos < blk_rq_pos(rq))
-		sdist = blk_rq_pos(rq) - bfqq->last_request_pos;
-	else
-		sdist = bfqq->last_request_pos - blk_rq_pos(rq);
+	if (bfqq->last_request_pos) {
+		if (bfqq->last_request_pos < blk_rq_pos(rq))
+			sdist = blk_rq_pos(rq) - bfqq->last_request_pos;
+		else
+			sdist = bfqq->last_request_pos - blk_rq_pos(rq);
+	}
 
-	/*
-	 * Don't allow the seek distance to get too large from the
-	 * odd fragment, pagein, etc.
-	 */
-	if (bfqq->seek_samples == 0) /* first request, not really a seek */
-		sdist = 0;
-	else if (bfqq->seek_samples <= 60) /* second & third seek */
-		sdist = min(sdist, (bfqq->seek_mean * 4) + 2*1024*1024);
-	else
-		sdist = min(sdist, (bfqq->seek_mean * 4) + 2*1024*64);
-
-	bfqq->seek_samples = (7*bfqq->seek_samples + 256) / 8;
-	bfqq->seek_total = (7*bfqq->seek_total + (u64)256*sdist) / 8;
-	total = bfqq->seek_total + (bfqq->seek_samples/2);
-	do_div(total, bfqq->seek_samples);
-	bfqq->seek_mean = (sector_t)total;
-
-	bfq_log_bfqq(bfqd, bfqq, "dist=%llu mean=%llu", (u64)sdist,
-			(u64)bfqq->seek_mean);
+	bfqq->seek_history <<= 1;
+	bfqq->seek_history |= (sdist > BFQQ_SEEK_THR);
 }
 
 /*
@@ -3828,22 +3764,13 @@ static void bfq_rq_enqueued(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 
 	bfq_update_io_thinktime(bfqd, bic);
 	bfq_update_io_seektime(bfqd, bfqq, rq);
-	if (!BFQQ_SEEKY(bfqq) && bfq_bfqq_constantly_seeky(bfqq)) {
-		bfq_clear_bfqq_constantly_seeky(bfqq);
-		if (!blk_queue_nonrot(bfqd->queue)) {
-			BUG_ON(!bfqd->const_seeky_busy_in_flight_queues);
-			bfqd->const_seeky_busy_in_flight_queues--;
-		}
-	}
 	if (bfqq->entity.service > bfq_max_budget(bfqd) / 8 ||
 	    !BFQQ_SEEKY(bfqq))
 		bfq_update_idle_window(bfqd, bfqq, bic);
-	bfq_clear_bfqq_just_split(bfqq);
 
 	bfq_log_bfqq(bfqd, bfqq,
-		     "rq_enqueued: idle_window=%d (seeky %d, mean %llu)",
-		     bfq_bfqq_idle_window(bfqq), BFQQ_SEEKY(bfqq),
-		     (long long unsigned)bfqq->seek_mean);
+		     "rq_enqueued: idle_window=%d (seeky %d)",
+		     bfq_bfqq_idle_window(bfqq), BFQQ_SEEKY(bfqq));
 
 	bfqq->last_request_pos = blk_rq_pos(rq) + blk_rq_sectors(rq);
 
