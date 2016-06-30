@@ -599,9 +599,11 @@ static struct blkcg_gq *bfqg_to_blkg(struct bfq_group *bfqg);
 #define bfq_log_bfqq(bfqd, bfqq, fmt, args...)	do {			\
 	char __pbuf[128];						\
 									\
+	assert_spin_locked((bfqd)->queue->queue_lock);			\
 	blkg_path(bfqg_to_blkg(bfqq_group(bfqq)), __pbuf, sizeof(__pbuf)); \
-	blk_add_trace_msg((bfqd)->queue, "bfq%d%c %s " fmt, (bfqq)->pid, \
-			bfq_bfqq_sync((bfqq)) ? 'S' : 'A',		\
+	blk_add_trace_msg((bfqd)->queue, "bfq%d%c %s " fmt, \
+			  (bfqq)->pid,			  \
+			  bfq_bfqq_sync((bfqq)) ? 'S' : 'A',	\
 			  __pbuf, ##args);				\
 } while (0)
 
@@ -766,6 +768,19 @@ bfq_entity_service_tree(struct bfq_entity *entity)
 
 	BUG_ON(idx >= BFQ_IOPRIO_CLASSES);
 	BUG_ON(sched_data == NULL);
+
+	if (bfqq)
+		bfq_log_bfqq(bfqq->bfqd, bfqq,
+			     "entity_service_tree %p %d",
+			     sched_data->service_tree + idx, idx);
+	else {
+		struct bfq_group *bfqg =
+			container_of(entity, struct bfq_group, entity);
+
+		bfq_log_bfqg((struct bfq_data *)bfqg->bfqd, bfqg,
+			     "entity_service_tree %p %d",
+			     sched_data->service_tree + idx, idx);
+	}
 
 	return sched_data->service_tree + idx;
 }

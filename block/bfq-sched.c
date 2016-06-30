@@ -1165,6 +1165,7 @@ static struct bfq_entity *
 __bfq_lookup_next_entity(struct bfq_service_tree *st, bool force)
 {
 	struct bfq_entity *entity, *new_next_in_service = NULL;
+	struct bfq_queue *bfqq;
 
 	if (RB_EMPTY_ROOT(&st->active))
 		return NULL;
@@ -1172,6 +1173,22 @@ __bfq_lookup_next_entity(struct bfq_service_tree *st, bool force)
 	bfq_update_vtime(st);
 	entity = bfq_first_active_entity(st);
 	BUG_ON(bfq_gt(entity->start, st->vtime));
+
+	bfqq = bfq_entity_to_bfqq(entity);
+	if (bfqq)
+		bfq_log_bfqq(bfqq->bfqd, bfqq,
+			     "__lookup_next: start %llu vtime %llu st %p",
+			     ((entity->start>>10)*1000)>>12,
+			     ((st->vtime>>10)*1000)>>12, st);
+	else {
+		struct bfq_group *bfqg =
+			container_of(entity, struct bfq_group, entity);
+
+		bfq_log_bfqg((struct bfq_data *)bfqg->bfqd, bfqg,
+			     "__lookup_next: start %llu vtime %llu st %p",
+			     ((entity->start>>10)*1000)>>12,
+			     ((st->vtime>>10)*1000)>>12, st);
+	}
 
 	/*
 	 * If the chosen entity does not match with the sched_data's
@@ -1214,6 +1231,22 @@ static struct bfq_entity *bfq_lookup_next_entity(struct bfq_sched_data *sd,
 		entity = __bfq_lookup_next_entity(st + BFQ_IOPRIO_CLASSES - 1,
 						  true);
 		if (entity) {
+			struct bfq_queue *bfqq = bfq_entity_to_bfqq(entity);
+
+			if (bfqq)
+				bfq_log_bfqq(bfqd, bfqq,
+					     "idle chosen from st %p %d",
+					     st + BFQ_IOPRIO_CLASSES - 1,
+					BFQ_IOPRIO_CLASSES - 1);
+			else {
+				struct bfq_group *bfqg =
+				container_of(entity, struct bfq_group, entity);
+
+				bfq_log_bfqg(bfqd, bfqg,
+					     "idle chosen from st %p %d",
+					     st + BFQ_IOPRIO_CLASSES - 1,
+					BFQ_IOPRIO_CLASSES - 1);
+			}
 			i = BFQ_IOPRIO_CLASSES - 1;
 			bfqd->bfq_class_idle_last_service = jiffies;
 			sd->next_in_service = entity;
@@ -1222,6 +1255,23 @@ static struct bfq_entity *bfq_lookup_next_entity(struct bfq_sched_data *sd,
 	for (; i < BFQ_IOPRIO_CLASSES; i++) {
 		entity = __bfq_lookup_next_entity(st + i, false);
 		if (entity) {
+			if (bfqd != NULL) {
+			struct bfq_queue *bfqq = bfq_entity_to_bfqq(entity);
+
+			if (bfqq)
+				bfq_log_bfqq(bfqd, bfqq,
+					     "chosen from st %p %d",
+					     st + i, i);
+			else {
+				struct bfq_group *bfqg =
+				container_of(entity, struct bfq_group, entity);
+
+				bfq_log_bfqg(bfqd, bfqg,
+					     "chosen from st %p %d",
+					     st + i, i);
+			}
+			}
+
 			if (extract) {
 				bfq_check_next_in_service(sd, entity);
 				bfq_active_extract(st + i, entity);
@@ -1273,13 +1323,15 @@ static struct bfq_queue *bfq_get_next_queue(struct bfq_data *bfqd)
 		bfqq = bfq_entity_to_bfqq(entity);
 		if (bfqq)
 			bfq_log_bfqq(bfqd, bfqq,
-				     "get_next_queue: returned this queue");
+			     "get_next_queue: this queue, finish %llu",
+				(((entity->finish>>10)*1000)>>10)>>2);
 		else {
 			struct bfq_group *bfqg =
 				container_of(entity, struct bfq_group, entity);
 
 			bfq_log_bfqg(bfqd, bfqg,
-				     "get_next_queue: returned this entity");
+			     "get_next_queue: this entity, finish %llu",
+				(((entity->finish>>10)*1000)>>10)>>2);
 		}
 
 		BUG_ON(!entity);
