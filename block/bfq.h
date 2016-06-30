@@ -200,7 +200,7 @@ struct bfq_group;
  * @burst_list_node: node for the device's burst list.
  * @seek_samples: number of seeks sampled
  * @seek_total: sum of the distances of the seeks sampled
- * @seek_mean: mean seek distance
+ * @seek_history: bit vector: a 1 for each seeky requests in history
  * @last_request_pos: position of the last request enqueued
  * @requests_within_timer: number of consecutive pairs of request completion
  *                         and arrival, such that the queue becomes idle
@@ -267,9 +267,7 @@ struct bfq_queue {
 
 	struct hlist_node burst_list_node;
 
-	unsigned int seek_samples;
-	u64 seek_total;
-	sector_t seek_mean;
+	u32 seek_history;
 	sector_t last_request_pos;
 
 	unsigned int requests_within_timer;
@@ -384,16 +382,6 @@ enum bfq_device_speed {
  *                         increments/decrements, would imply more overhead
  *                         than just updating busy_in_flight_queues
  *                         regardless of the value of @hw_tag.
- * @const_seeky_busy_in_flight_queues: number of constantly-seeky @bfq_queues
- *                                     (that is, seeky queues that expired
- *                                     for budget timeout at least once)
- *                                     containing pending or in-flight
- *                                     requests, including the in-service
- *                                     @bfq_queue if constantly seeky. This
- *                                     field is updated only if the device
- *                                     is rotational, but used only if the
- *                                     device is also NCQ-capable (see the
- *                                     comments to @busy_in_flight_queues).
  * @wr_busy_queues: number of weight-raised busy @bfq_queues.
  * @queued: number of queued requests.
  * @rq_in_driver: number of requests dispatched and waiting for completion.
@@ -483,7 +471,6 @@ struct bfq_data {
 
 	int busy_queues;
 	int busy_in_flight_queues;
-	int const_seeky_busy_in_flight_queues;
 	int wr_busy_queues;
 	int queued;
 	int rq_in_driver;
@@ -568,10 +555,6 @@ enum bfqq_state_flags {
 					 * bfqq activated in a large burst,
 					 * see comments to bfq_handle_burst.
 					 */
-	BFQ_BFQQ_FLAG_constantly_seeky,	/*
-					 * bfqq has proved to be slow and
-					 * seeky until budget timeout
-					 */
 	BFQ_BFQQ_FLAG_softrt_update,	/*
 					 * may need softrt-next-start
 					 * update
@@ -605,7 +588,6 @@ BFQ_BFQQ_FNS(sync);
 BFQ_BFQQ_FNS(budget_new);
 BFQ_BFQQ_FNS(IO_bound);
 BFQ_BFQQ_FNS(in_large_burst);
-BFQ_BFQQ_FNS(constantly_seeky);
 BFQ_BFQQ_FNS(coop);
 BFQ_BFQQ_FNS(split_coop);
 BFQ_BFQQ_FNS(softrt_update);
