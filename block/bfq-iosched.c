@@ -2054,11 +2054,35 @@ static int bfq_allow_merge(struct request_queue *q, struct request *rq,
 			 * to decide whether bio and rq can be merged.
 			 */
 			bfqq = new_bfqq;
-		} else
-			bfq_bfqq_increase_failed_cooperations(bfqq);
+		}
 	}
 
 	return bfqq == RQ_BFQQ(rq);
+}
+
+/*
+ * Set the maximum time for the in-service queue to consume its
+ * budget. This prevents seeky processes from lowering the throughput.
+ * In practice, a time-slice service scheme is used with seeky
+ * processes.
+ */
+static void bfq_set_budget_timeout(struct bfq_data *bfqd,
+				   struct bfq_queue *bfqq)
+{
+	unsigned int timeout_coeff;
+
+	if (bfqq->wr_cur_max_time == bfqd->bfq_wr_rt_max_time)
+		timeout_coeff = 1;
+	else
+		timeout_coeff = bfqq->entity.weight / bfqq->entity.orig_weight;
+
+	bfqd->last_budget_start = ktime_get();
+
+	bfqq->budget_timeout = jiffies +
+		bfqd->bfq_timeout * timeout_coeff;
+
+	bfq_log_bfqq(bfqd, bfqq, "set budget_timeout %u",
+		jiffies_to_msecs(bfqd->bfq_timeout * timeout_coeff));
 }
 
 static void __bfq_set_in_service_queue(struct bfq_data *bfqd,
@@ -2067,15 +2091,50 @@ static void __bfq_set_in_service_queue(struct bfq_data *bfqd,
 	if (bfqq) {
 		bfqg_stats_update_avg_queue_size(bfqq_group(bfqq));
 		bfq_mark_bfqq_must_alloc(bfqq);
-		bfq_mark_bfqq_budget_new(bfqq);
 		bfq_clear_bfqq_fifo_expire(bfqq);
 
 		bfqd->budgets_assigned = (bfqd->budgets_assigned*7 + 256) / 8;
 
+		BUG_ON(bfqq == bfqd->in_service_queue);
+		BUG_ON(RB_EMPTY_ROOT(&bfqq->sort_list));
+
+		if (bfqq->wr_coeff > 1 &&
+		    bfqq->wr_cur_max_time == bfqd->bfq_wr_rt_max_time &&
+			time_is_before_jiffies(bfqq->budget_timeout)) {
+			/*
+			 * For soft real-time queues, move the start
+			 * of the weight-raising period forward by the
+			 * time the queue has not received any
+			 * service. Otherwise, a relatively long
+			 * service delay is likely to cause the
+			 * weight-raising period of the queue to end,
+			 * because of the short duration of the
+			 * weight-raising period of a soft real-time
+			 * queue.  It is worth noting that this move
+			 * is not so dangerous for the other queues,
+			 * because soft real-time queues are not
+			 * greedy.
+			 *
+			 * To not add a further variable, we use the
+			 * overloaded field budget_timeout to
+			 * determine for how long the queue has not
+			 * received service, i.e., how much time has
+			 * elapsed since the queue expired. However,
+			 * this is a little imprecise, because
+			 * budget_timeout is set to jiffies if bfqq
+			 * not only expires, but also remains with no
+			 * request.
+			 */
+			bfqq->last_wr_start_finish += jiffies -
+				bfqq->budget_timeout;
+		}
+
+		bfq_set_budget_timeout(bfqd, bfqq);
 		bfq_log_bfqq(bfqd, bfqq,
 			     "set_in_service_queue, cur-budget = %d",
 			     bfqq->entity.budget);
-	}
+	} else
+		bfq_log(bfqd, "set_in_service_queue: NULL");
 
 	bfqd->in_service_queue = bfqq;
 }
@@ -2089,31 +2148,6 @@ static struct bfq_queue *bfq_set_in_service_queue(struct bfq_data *bfqd)
 
 	__bfq_set_in_service_queue(bfqd, bfqq);
 	return bfqq;
-}
-
-/*
- * If enough samples have been computed, return the current max budget
- * stored in bfqd, which is dynamically updated according to the
- * estimated disk peak rate; otherwise return the default max budget
- */
-static int bfq_max_budget(struct bfq_data *bfqd)
-{
-	if (bfqd->budgets_assigned < bfq_stats_min_budgets)
-		return bfq_default_max_budget;
-	else
-		return bfqd->bfq_max_budget;
-}
-
-/*
- * Return min budget, which is a fraction of the current or default
- * max budget (trying with 1/32)
- */
-static int bfq_min_budget(struct bfq_data *bfqd)
-{
-	if (bfqd->budgets_assigned < bfq_stats_min_budgets)
-		return bfq_default_max_budget / 32;
-	else
-		return bfqd->bfq_max_budget / 32;
 }
 
 static void bfq_arm_slice_timer(struct bfq_data *bfqd)
@@ -2159,31 +2193,7 @@ static void bfq_arm_slice_timer(struct bfq_data *bfqd)
 }
 
 /*
- * Set the maximum time for the in-service queue to consume its
- * budget. This prevents seeky processes from lowering the disk
- * throughput (always guaranteed with a time slice scheme as in CFQ).
- */
-static void bfq_set_budget_timeout(struct bfq_data *bfqd)
-{
-	struct bfq_queue *bfqq = bfqd->in_service_queue;
-	unsigned int timeout_coeff;
-	if (bfqq->wr_cur_max_time == bfqd->bfq_wr_rt_max_time)
-		timeout_coeff = 1;
-	else
-		timeout_coeff = bfqq->entity.weight / bfqq->entity.orig_weight;
-
-	bfqd->last_budget_start = ktime_get();
-
-	bfq_clear_bfqq_budget_new(bfqq);
-	bfqq->budget_timeout = jiffies +
-		bfqd->bfq_timeout * timeout_coeff;
-
-	bfq_log_bfqq(bfqd, bfqq, "set budget_timeout %u",
-		jiffies_to_msecs(bfqd->bfq_timeout * timeout_coeff));
-}
-
-/*
- * Move request from internal lists to the request queue dispatch list.
+ * Move request from internal lists to the dispatch list of the request queue
  */
 static void bfq_dispatch_insert(struct request_queue *q, struct request *rq)
 {
@@ -2244,18 +2254,14 @@ static void __bfq_bfqq_expire(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 		bfq_mark_bfqq_split_coop(bfqq);
 
 	if (RB_EMPTY_ROOT(&bfqq->sort_list)) {
-		/*
-		 * Overloading budget_timeout field to store the time
-		 * at which the queue remains with no backlog; used by
-		 * the weight-raising mechanism.
-		 */
-		bfqq->budget_timeout = jiffies;
-		if (bfqq->entity.budget < bfqq->entity.service) {
-			pr_crit("expire before del_busy: serv %d budg %d\n",
-				bfqq->entity.service,
-				bfqq->entity.budget);
-		}
-		BUG_ON(bfqq->entity.budget < bfqq->entity.service);
+		if (bfqq->dispatched == 0)
+			/*
+			 * Overloading budget_timeout field to store
+			 * the time at which the queue remains with no
+			 * backlog and no outstanding request; used by
+			 * the weight-raising mechanism.
+			 */
+			bfqq->budget_timeout = jiffies;
 
 		bfq_del_bfqq_busy(bfqd, bfqq, 1);
 	} else {
@@ -2283,10 +2289,19 @@ static void __bfq_bfqq_recalc_budget(struct bfq_data *bfqd,
 	struct request *next_rq;
 	int budget, min_budget;
 
-	budget = bfqq->max_budget;
+	BUG_ON(bfqq != bfqd->in_service_queue);
+
 	min_budget = bfq_min_budget(bfqd);
 
-	BUG_ON(bfqq != bfqd->in_service_queue);
+	if (bfqq->wr_coeff == 1)
+		budget = bfqq->max_budget;
+	else /*
+	      * Use a constant, low budget for weight-raised queues,
+	      * to help achieve a low latency. Keep it slightly higher
+	      * than the minimum possible budget, to cause a little
+	      * bit fewer expirations.
+	      */
+		budget = 2 * min_budget;
 
 	bfq_log_bfqq(bfqd, bfqq, "recalc_budg: last budg %d, budg left %d",
 		bfqq->entity.budget, bfq_bfqq_budget_left(bfqq));
@@ -2295,7 +2310,7 @@ static void __bfq_bfqq_recalc_budget(struct bfq_data *bfqd,
 	bfq_log_bfqq(bfqd, bfqq, "recalc_budg: sync %d, seeky %d",
 		bfq_bfqq_sync(bfqq), BFQQ_SEEKY(bfqd->in_service_queue));
 
-	if (bfq_bfqq_sync(bfqq)) {
+	if (bfq_bfqq_sync(bfqq) && bfqq->wr_coeff == 1) {
 		switch (reason) {
 		/*
 		 * Caveat: in all the following cases we trade latency
@@ -2675,6 +2690,13 @@ static bool bfq_update_peak_rate(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 static unsigned long bfq_bfqq_softrt_next_start(struct bfq_data *bfqd,
 						struct bfq_queue *bfqq)
 {
+	bfq_log_bfqq(bfqd, bfqq,
+"softrt_next_start: service_blkg %lu soft_rate %u sects/sec interval %u",
+		     bfqq->service_from_backlogged,
+		     bfqd->bfq_wr_max_softrt_rate,
+		     jiffies_to_msecs(HZ * bfqq->service_from_backlogged /
+				      bfqd->bfq_wr_max_softrt_rate));
+
 	return max(bfqq->last_idle_bklogged +
 		   HZ * bfqq->service_from_backlogged /
 		   bfqd->bfq_wr_max_softrt_rate,
@@ -2767,19 +2789,23 @@ static void bfq_bfqq_expire(struct bfq_data *bfqd,
 	if (bfqd->low_latency && bfqd->bfq_wr_max_softrt_rate > 0 &&
 	    RB_EMPTY_ROOT(&bfqq->sort_list)) {
 		/*
-		 * If we get here, and there are no outstanding requests,
-		 * then the request pattern is isochronous (see the comments
-		 * to the function bfq_bfqq_softrt_next_start()). Hence we
-		 * can compute soft_rt_next_start. If, instead, the queue
-		 * still has outstanding requests, then we have to wait
-		 * for the completion of all the outstanding requests to
+		 * If we get here, and there are no outstanding
+		 * requests, then the request pattern is isochronous
+		 * (see the comments on the function
+		 * bfq_bfqq_softrt_next_start()). Thus we can compute
+		 * soft_rt_next_start. If, instead, the queue still
+		 * has outstanding requests, then we have to wait for
+		 * the completion of all the outstanding requests to
 		 * discover whether the request pattern is actually
 		 * isochronous.
 		 */
-		if (bfqq->dispatched == 0)
+		BUG_ON(bfqd->busy_queues < 1);
+		if (bfqq->dispatched == 0) {
 			bfqq->soft_rt_next_start =
 				bfq_bfqq_softrt_next_start(bfqd, bfqq);
-		else {
+			bfq_log_bfqq(bfqd, bfqq, "new soft_rt_next %lu",
+				     bfqq->soft_rt_next_start);
+		} else {
 			/*
 			 * The application is still waiting for the
 			 * completion of one or more requests:
@@ -3980,27 +4006,29 @@ static void bfq_completed_request(struct request_queue *q, struct request *rq)
 				     rq_io_start_time_ns(rq), rq->cmd_flags);
 
 	if (!bfqq->dispatched && !bfq_bfqq_busy(bfqq)) {
+		BUG_ON(!RB_EMPTY_ROOT(&bfqq->sort_list));
+		/*
+		 * Set budget_timeout (which we overload to store the
+		 * time at which the queue remains with no backlog and
+		 * no outstanding request; used by the weight-raising
+		 * mechanism).
+		 */
+		bfqq->budget_timeout = jiffies;
+
 		bfq_weights_tree_remove(bfqd, &bfqq->entity,
 					&bfqd->queue_weights_tree);
-		if (!blk_queue_nonrot(bfqd->queue)) {
-			BUG_ON(!bfqd->busy_in_flight_queues);
-			bfqd->busy_in_flight_queues--;
-			if (bfq_bfqq_constantly_seeky(bfqq)) {
-				BUG_ON(!bfqd->
-					const_seeky_busy_in_flight_queues);
-				bfqd->const_seeky_busy_in_flight_queues--;
-			}
-		}
 	}
 
 	RQ_BIC(rq)->ttime.last_end_request = jiffies;
 
 	/*
-	 * If we are waiting to discover whether the request pattern of the
-	 * task associated with the queue is actually isochronous, and
-	 * both requisites for this condition to hold are satisfied, then
-	 * compute soft_rt_next_start (see the comments to the function
-	 * bfq_bfqq_softrt_next_start()).
+	 * If we are waiting to discover whether the request pattern
+	 * of the task associated with the queue is actually
+	 * isochronous, and both requisites for this condition to hold
+	 * are now satisfied, then compute soft_rt_next_start (see the
+	 * comments on the function bfq_bfqq_softrt_next_start()). We
+	 * schedule this delayed check when bfqq expires, if it still
+	 * has in-flight requests.
 	 */
 	if (bfq_bfqq_softrt_update(bfqq) && bfqq->dispatched == 0 &&
 	    RB_EMPTY_ROOT(&bfqq->sort_list))
@@ -4012,10 +4040,7 @@ static void bfq_completed_request(struct request_queue *q, struct request *rq)
 	 * or if we want to idle in case it has no pending requests.
 	 */
 	if (bfqd->in_service_queue == bfqq) {
-		if (bfq_bfqq_budget_new(bfqq))
-			bfq_set_budget_timeout(bfqd);
-
-		if (bfq_bfqq_must_idle(bfqq)) {
+		if (bfqq->dispatched == 0 && bfq_bfqq_must_idle(bfqq)) {
 			bfq_arm_slice_timer(bfqd);
 			goto out;
 		} else if (bfq_may_expire_for_budg_timeout(bfqq))
@@ -4460,7 +4485,10 @@ static int bfq_init_queue(struct request_queue *q, struct elevator_type *e)
 
 	bfqd->low_latency = true;
 
-	bfqd->bfq_wr_coeff = 20;
+	/*
+	 * Trade-off between responsiveness and fairness.
+	 */
+	bfqd->bfq_wr_coeff = 30;
 	bfqd->bfq_wr_rt_max_time = msecs_to_jiffies(300);
 	bfqd->bfq_wr_max_time = 0;
 	bfqd->bfq_wr_min_idle_time = msecs_to_jiffies(2000);
