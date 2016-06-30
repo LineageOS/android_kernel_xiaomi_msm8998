@@ -762,7 +762,7 @@ bfq_entity_service_tree(struct bfq_entity *entity)
 	struct bfq_sched_data *sched_data = entity->sched_data;
 	struct bfq_queue *bfqq = bfq_entity_to_bfqq(entity);
 	unsigned int idx = bfqq ? bfqq->ioprio_class - 1 :
-				  BFQ_DEFAULT_GRP_CLASS;
+				  BFQ_DEFAULT_GRP_CLASS - 1;
 
 	BUG_ON(idx >= BFQ_IOPRIO_CLASSES);
 	BUG_ON(sched_data == NULL);
