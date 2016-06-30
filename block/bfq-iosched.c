@@ -1611,12 +1611,15 @@ static void bfq_merged_requests(struct request_queue *q, struct request *rq,
 static void bfq_bfqq_end_wr(struct bfq_queue *bfqq)
 {
 	BUG_ON(!bfqq);
+
 	if (bfq_bfqq_busy(bfqq))
 		bfqq->bfqd->wr_busy_queues--;
 	bfqq->wr_coeff = 1;
 	bfqq->wr_cur_max_time = 0;
 	/* Trigger a weight change on the next activation of the queue */
 	bfqq->entity.prio_changed = 1;
+	bfq_log_bfqq(bfqq->bfqd, bfqq, "end_wr: wr_busy %d",
+		     bfqq->bfqd->wr_busy_queues);
 }
 
 static void bfq_end_wr_async_queues(struct bfq_data *bfqd,
@@ -2832,8 +2835,9 @@ static void bfq_bfqq_expire(struct bfq_data *bfqd,
 	}
 
 	bfq_log_bfqq(bfqd, bfqq,
-		"expire (%d, slow %d, num_disp %d, idle_win %d)", reason,
-		slow, bfqq->dispatched, bfq_bfqq_idle_window(bfqq));
+		"expire (%d, slow %d, num_disp %d, idle_win %d, weight %d)",
+		     reason, slow, bfqq->dispatched,
+		     bfq_bfqq_idle_window(bfqq), entity->weight);
 
 	/*
 	 * Increase, decrease or leave budget unchanged according to
@@ -3115,6 +3119,16 @@ static bool bfq_bfqq_may_idle(struct bfq_queue *bfqq)
 	 * 2) idling either boosts the throughput (without issues), or
 	 *    is necessary to preserve service guarantees.
 	 */
+	bfq_log_bfqq(bfqd, bfqq, "may_idle: sync %d idling_boosts_thr %d",
+		     bfq_bfqq_sync(bfqq), idling_boosts_thr);
+
+	bfq_log_bfqq(bfqd, bfqq,
+		     "may_idle: wr_busy %d boosts %d IO-bound %d guar %d",
+		     bfqd->wr_busy_queues,
+		     idling_boosts_thr_without_issues,
+		     bfq_bfqq_IO_bound(bfqq),
+		     idling_needed_for_service_guarantees);
+
 	return bfq_bfqq_sync(bfqq) &&
 		(idling_boosts_thr_without_issues ||
 		 idling_needed_for_service_guarantees);
@@ -3568,6 +3582,9 @@ static void bfq_set_next_ioprio_data(struct bfq_queue *bfqq,
 
 	bfqq->entity.new_weight = bfq_ioprio_to_weight(bfqq->new_ioprio);
 	bfqq->entity.prio_changed = 1;
+	bfq_log_bfqq(bfqq->bfqd, bfqq,
+		     "set_next_ioprio_data: bic_class %d prio %d class %d",
+		     ioprio_class, bfqq->new_ioprio, bfqq->new_ioprio_class);
 }
 
 static void bfq_check_ioprio_change(struct bfq_io_cq *bic, struct bio *bio)
