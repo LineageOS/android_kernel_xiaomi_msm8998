@@ -2707,13 +2707,21 @@ static unsigned long bfq_bfqq_softrt_next_start(struct bfq_data *bfqd,
 }
 
 /*
- * Return the largest-possible time instant such that, for as long as possible,
- * the current time will be lower than this time instant according to the macro
- * time_is_before_jiffies().
+ * Return the farthest future time instant according to jiffies
+ * macros.
  */
-static unsigned long bfq_infinity_from_now(unsigned long now)
+static unsigned long bfq_greatest_from_now(void)
 {
-	return now + ULONG_MAX / 2;
+	return jiffies + MAX_JIFFY_OFFSET;
+}
+
+/*
+ * Return the farthest past time instant according to jiffies
+ * macros.
+ */
+static unsigned long bfq_smallest_from_now(void)
+{
+	return jiffies - MAX_JIFFY_OFFSET;
 }
 
 /**
@@ -2825,7 +2833,7 @@ static void bfq_bfqq_expire(struct bfq_data *bfqd,
 			 *    happened to be in the past.
 			 */
 			bfqq->soft_rt_next_start =
-				bfq_infinity_from_now(jiffies);
+				bfq_greatest_from_now();
 			/*
 			 * Schedule an update of soft_rt_next_start to when
 			 * the task may be discovered to be isochronous.
@@ -2862,10 +2870,7 @@ static void bfq_bfqq_expire(struct bfq_data *bfqd,
  */
 static bool bfq_bfqq_budget_timeout(struct bfq_queue *bfqq)
 {
-	if (bfq_bfqq_budget_new(bfqq) ||
-	    time_before(jiffies, bfqq->budget_timeout))
-		return false;
-	return true;
+	return time_is_before_eq_jiffies(bfqq->budget_timeout);
 }
 
 /*
@@ -3654,7 +3659,9 @@ static void bfq_init_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 	bfqq->pid = pid;
 
 	bfqq->wr_coeff = 1;
-	bfqq->last_wr_start_finish = 0;
+	bfqq->last_wr_start_finish = bfq_smallest_from_now();
+	bfqq->budget_timeout = bfq_smallest_from_now();
+	bfqq->split_time = bfq_smallest_from_now();
 	/*
 	 * Set to the value for which bfqq will not be deemed as
 	 * soft rt when it becomes backlogged.
@@ -3833,7 +3840,8 @@ static void bfq_update_idle_window(struct bfq_data *bfqd,
 		return;
 
 	/* Idle window just restored, statistics are meaningless. */
-	if (bfq_bfqq_just_split(bfqq))
+	if (time_is_after_eq_jiffies(bfqq->split_time +
+				     bfqd->bfq_wr_min_idle_time))
 		return;
 
 	enable_idle = bfq_bfqq_idle_window(bfqq);
@@ -4686,10 +4694,8 @@ static ssize_t bfq_weights_store(struct elevator_queue *e,
 
 static unsigned long bfq_estimated_max_budget(struct bfq_data *bfqd)
 {
-	u64 timeout = jiffies_to_msecs(bfqd->bfq_timeout);
-
 	if (bfqd->peak_rate_samples >= BFQ_PEAK_RATE_SAMPLES)
-		return bfq_calc_max_budget(bfqd->peak_rate, timeout);
+		return bfq_calc_max_budget(bfqd);
 	else
 		return bfq_default_max_budget;
 }
