@@ -744,26 +744,63 @@ static void bfq_bfqq_served(struct bfq_queue *bfqq, int served)
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
 	bfqg_stats_set_start_empty_time(bfqq_group(bfqq));
 #endif
-	bfq_log_bfqq(bfqq->bfqd, bfqq, "bfqq_served %d secs", served);
+	st = bfq_entity_service_tree(&bfqq->entity);
+	bfq_log_bfqq(bfqq->bfqd, bfqq, "bfqq_served %d secs, vtime %llu on %p",
+		     served,  ((st->vtime>>10)*1000)>>12, st);
 }
 
 /**
- * bfq_bfqq_charge_full_budget - set the service to the entity budget.
+ * bfq_bfqq_charge_time - charge an amount of service equivalent to the length
+ *			  of the time interval during which bfqq has been in
+ *			  service.
+ * @bfqd: the device
  * @bfqq: the queue that needs a service update.
+ * @time_ms: the amount of time during which the queue has received service
  *
- * When it's not possible to be fair in the service domain, because
- * a queue is not consuming its budget fast enough (the meaning of
- * fast depends on the timeout parameter), we charge it a full
- * budget.  In this way we should obtain a sort of time-domain
- * fairness among all the seeky/slow queues.
+ * If a queue does not consume its budget fast enough, then providing
+ * the queue with service fairness may impair throughput, more or less
+ * severely. For this reason, queues that consume their budget slowly
+ * are provided with time fairness instead of service fairness. This
+ * goal is achieved through the BFQ scheduling engine, even if such an
+ * engine works in the service, and not in the time domain. The trick
+ * is charging these queues with an inflated amount of service, equal
+ * to the amount of service that they would have received during their
+ * service slot if they had been fast, i.e., if their requests had
+ * been dispatched at a rate equal to the estimated peak rate.
+ *
+ * It is worth noting that time fairness can cause important
+ * distortions in terms of bandwidth distribution, on devices with
+ * internal queueing. The reason is that I/O requests dispatched
+ * during the service slot of a queue may be served after that service
+ * slot is finished, and may have a total processing time loosely
+ * correlated with the duration of the service slot. This is
+ * especially true for short service slots.
  */
-static void bfq_bfqq_charge_full_budget(struct bfq_queue *bfqq)
+static void bfq_bfqq_charge_time(struct bfq_data *bfqd, struct bfq_queue *bfqq,
+				 unsigned long time_ms)
 {
 	struct bfq_entity *entity = &bfqq->entity;
+	int tot_serv_to_charge = entity->service;
+	unsigned int timeout_ms = jiffies_to_msecs(bfq_timeout);
 
-	bfq_log_bfqq(bfqq->bfqd, bfqq, "charge_full_budget");
+	if (time_ms > 0 && time_ms < timeout_ms)
+		tot_serv_to_charge =
+			(bfqd->bfq_max_budget * time_ms) / timeout_ms;
 
-	bfq_bfqq_served(bfqq, entity->budget - entity->service);
+	if (tot_serv_to_charge < entity->service)
+		tot_serv_to_charge = entity->service;
+
+	bfq_log_bfqq(bfqq->bfqd, bfqq,
+		     "charge_time: %lu/%u ms, %d/%d/%d sectors",
+		     time_ms, timeout_ms, entity->service,
+		     tot_serv_to_charge, entity->budget);
+
+	/* Increase budget to avoid inconsistencies */
+	if (tot_serv_to_charge > entity->budget)
+		entity->budget = tot_serv_to_charge;
+
+	bfq_bfqq_served(bfqq,
+			max_t(int, 0, tot_serv_to_charge - entity->service));
 }
 
 /**
