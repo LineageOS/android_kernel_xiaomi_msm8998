@@ -225,6 +225,7 @@ struct bfq_group;
  *                           backlogged
  * @bic: pointer to the bfq_io_cq owning the bfq_queue, set to %NULL if the
  *	 queue is shared
+ * @split_time: time of last split
  *
  * A bfq_queue is a leaf request queue; it can be associated with an
  * io_context or more, if it  is  async or shared  between  cooperating
@@ -283,6 +284,8 @@ struct bfq_queue {
 	unsigned int wr_coeff;
 	unsigned long last_idle_bklogged;
 	unsigned long service_from_backlogged;
+
+	unsigned long split_time;
 };
 
 /**
@@ -322,10 +325,6 @@ struct bfq_ttime {
  *                        to a large burst
  * @was_in_burst_list: true if the queue belonged to a burst list
  *                     before its merge with another cooperating queue
- * @cooperations: counter of consecutive successful queue merges underwent
- *                by any of the process' @bfq_queues
- * @failed_cooperations: counter of consecutive failed queue merges of any
- *                       of the process' @bfq_queues
  */
 struct bfq_io_cq {
 	struct io_cq icq; /* must be the first member */
@@ -343,9 +342,6 @@ struct bfq_io_cq {
 
 	bool saved_in_large_burst;
 	bool was_in_burst_list;
-
-	unsigned int cooperations;
-	unsigned int failed_cooperations;
 };
 
 enum bfq_device_speed {
@@ -436,10 +432,6 @@ enum bfq_device_speed {
  *               without service-domain guarantees).
  * @bfq_coop_thresh: number of queue merges after which a @bfq_queue is
  *                   no more granted any weight-raising.
- * @bfq_failed_cooperations: number of consecutive failed cooperation
- *                           chances after which weight-raising is restored
- *                           to a queue subject to more than bfq_coop_thresh
- *                           queue merges.
  * @bfq_requests_within_timer: number of consecutive requests that must be
  *                             issued within the idle time slice to set
  *                             again idling to a queue which was marked as
@@ -529,7 +521,6 @@ struct bfq_data {
 	unsigned int bfq_timeout;
 
 	unsigned int bfq_coop_thresh;
-	unsigned int bfq_failed_cooperations;
 	unsigned int bfq_requests_within_timer;
 
 	unsigned long last_ins_in_burst;
@@ -586,8 +577,7 @@ enum bfqq_state_flags {
 					 * update
 					 */
 	BFQ_BFQQ_FLAG_coop,		/* bfqq is shared */
-	BFQ_BFQQ_FLAG_split_coop,	/* shared bfqq will be split */
-	BFQ_BFQQ_FLAG_just_split,	/* queue has just been split */
+	BFQ_BFQQ_FLAG_split_coop	/* shared bfqq will be split */
 };
 
 #define BFQ_BFQQ_FNS(name)						\
@@ -618,7 +608,6 @@ BFQ_BFQQ_FNS(in_large_burst);
 BFQ_BFQQ_FNS(constantly_seeky);
 BFQ_BFQQ_FNS(coop);
 BFQ_BFQQ_FNS(split_coop);
-BFQ_BFQQ_FNS(just_split);
 BFQ_BFQQ_FNS(softrt_update);
 #undef BFQ_BFQQ_FNS
 
