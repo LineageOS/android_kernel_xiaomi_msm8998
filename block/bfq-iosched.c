@@ -1616,7 +1616,10 @@ static void bfq_bfqq_end_wr(struct bfq_queue *bfqq)
 		bfqq->bfqd->wr_busy_queues--;
 	bfqq->wr_coeff = 1;
 	bfqq->wr_cur_max_time = 0;
-	/* Trigger a weight change on the next activation of the queue */
+	/*
+	 * Trigger a weight change on the next invocation of
+	 * __bfq_entity_update_weight_prio.
+	 */
 	bfqq->entity.prio_changed = 1;
 	bfq_log_bfqq(bfqq->bfqd, bfqq, "end_wr: wr_busy %d",
 		     bfqq->bfqd->wr_busy_queues);
@@ -2414,9 +2417,10 @@ static void __bfq_bfqq_recalc_budget(struct bfq_data *bfqd,
 		}
 	} else if (!bfq_bfqq_sync(bfqq))
 		/*
-		 * Async queues get always the maximum possible budget
-		 * (their ability to dispatch is limited by
-		 * the charging factor).
+		 * Async queues get always the maximum possible
+		 * budget, as for them we do not care about latency
+		 * (in addition, their ability to dispatch is limited
+		 * by the charging factor).
 		 */
 		budget = bfqd->bfq_max_budget;
 
@@ -2767,6 +2771,15 @@ static void bfq_bfqq_expire(struct bfq_data *bfqd,
 	 */
 	slow = bfq_update_peak_rate(bfqd, bfqq, compensate, reason, &delta);
 
+	/*
+	 * Increase service_from_backlogged before next statement,
+	 * because the possible next invocation of
+	 * bfq_bfqq_charge_time would likely inflate
+	 * entity->service. In contrast, service_from_backlogged must
+	 * contain real service, to enable the soft real-time
+	 * heuristic to correctly compute the bandwidth consumed by
+	 * bfqq.
+	 */
 	bfqq->service_from_backlogged += entity->service;
 
 	/*
@@ -3333,6 +3346,17 @@ static int bfq_dispatch_request(struct bfq_data *bfqd,
 
 	bfq_dispatch_insert(bfqd->queue, rq);
 
+	/*
+	 * If weight raising has to terminate for bfqq, then next
+	 * function causes an immediate update of bfqq's weight,
+	 * without waiting for next activation. As a consequence, on
+	 * expiration, bfqq will be timestamped as if has never been
+	 * weight-raised during this service slot, even if it has
+	 * received part or even most of the service as a
+	 * weight-raised queue. This inflates bfqq's timestamps, which
+	 * is beneficial, as bfqq is then more willing to leave the
+	 * device immediately to possible other weight-raised queues.
+	 */
 	bfq_update_wr_data(bfqd, bfqq);
 
 	bfq_log_bfqq(bfqd, bfqq,

@@ -1058,7 +1058,7 @@ static void bfq_deactivate_entity(struct bfq_entity *entity, int requeue)
 
 		/*
 		 * If we get here, then the parent is no more backlogged and
-		 * we want to propagate the dequeue upwards.
+		 * we want to propagate the deactivation upwards.
 		 */
 		requeue = 1;
 	}
