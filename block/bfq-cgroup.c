@@ -370,7 +370,8 @@ static void bfq_cpd_init(struct blkcg_policy_data *cpd)
 {
 	struct bfq_group_data *d = cpd_to_bfqgd(cpd);
 
-	d->weight = BFQ_DEFAULT_GRP_WEIGHT;
+	d->weight = cgroup_subsys_on_dfl(io_cgrp_subsys) ?
+		CGROUP_WEIGHT_DFL : BFQ_WEIGHT_LEGACY_DFL;
 }
 
 static void bfq_cpd_free(struct blkcg_policy_data *cpd)
@@ -806,7 +807,7 @@ static int bfq_io_set_weight_legacy(struct cgroup_subsys_state *css,
 	struct blkcg *blkcg = css_to_blkcg(css);
 	struct bfq_group_data *bfqgd = blkcg_to_bfqgd(blkcg);
 	struct blkcg_gq *blkg;
-	int ret = -EINVAL;
+	int ret = -ERANGE;
 
 	if (val < BFQ_MIN_WEIGHT || val > BFQ_MAX_WEIGHT)
 		return ret;
