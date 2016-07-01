@@ -3990,8 +3990,8 @@ static void bfq_insert_request(struct request_queue *q, struct request *rq)
 
 static void bfq_update_hw_tag(struct bfq_data *bfqd)
 {
-	bfqd->max_rq_in_driver = max(bfqd->max_rq_in_driver,
-				     bfqd->rq_in_driver);
+	bfqd->max_rq_in_driver = max_t(int, bfqd->max_rq_in_driver,
+				       bfqd->rq_in_driver);
 
 	if (bfqd->hw_tag == 1)
 		return;
