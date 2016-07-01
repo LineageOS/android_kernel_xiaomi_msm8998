@@ -440,7 +440,11 @@ enum bfq_device_speed {
  * 			    queue-activation burst is deemed as 'large'.
  * @large_burst: true if a large queue-activation burst is in progress.
  * @burst_list: head of the burst list (as for the above fields, more details
- * 		in the comments to the function bfq_handle_burst).
+ *		in the comments on the function bfq_handle_burst).
+ * @strict_guarantees: force device idling whenever needed to provide
+ *		       accurate service guarantees. CAVEAT: this may
+ *		       even increase latencies, in case of useless
+ *		       idling for processes that did stop doing I/O.
  * @low_latency: if set to true, low-latency heuristics are enabled.
  * @bfq_wr_coeff: maximum factor by which the weight of a weight-raised
  *                queue is multiplied.
@@ -518,7 +522,7 @@ struct bfq_data {
 	bool large_burst;
 	struct hlist_head burst_list;
 
-	bool low_latency;
+	bool strict_guarantees, low_latency;
 
 	/* parameters of the low_latency heuristics */
 	unsigned int bfq_wr_coeff;
