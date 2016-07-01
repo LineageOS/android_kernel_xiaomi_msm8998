@@ -2925,6 +2925,9 @@ static bool bfq_bfqq_may_idle(struct bfq_queue *bfqq)
 		idling_needed_for_service_guarantees,
 		asymmetric_scenario;
 
+	if (bfqd->strict_guarantees)
+		return true;
+
 	/*
 	 * The next variable takes into account the cases where idling
 	 * boosts the throughput.
@@ -4639,6 +4642,7 @@ SHOW_FUNCTION(bfq_back_seek_penalty_show, bfqd->bfq_back_penalty, 0);
 SHOW_FUNCTION(bfq_slice_idle_show, bfqd->bfq_slice_idle, 1);
 SHOW_FUNCTION(bfq_max_budget_show, bfqd->bfq_user_max_budget, 0);
 SHOW_FUNCTION(bfq_timeout_sync_show, bfqd->bfq_timeout, 1);
+SHOW_FUNCTION(bfq_strict_guarantees_show, bfqd->strict_guarantees, 0);
 SHOW_FUNCTION(bfq_low_latency_show, bfqd->low_latency, 0);
 SHOW_FUNCTION(bfq_wr_coeff_show, bfqd->bfq_wr_coeff, 0);
 SHOW_FUNCTION(bfq_wr_rt_max_time_show, bfqd->bfq_wr_rt_max_time, 1);
@@ -4743,6 +4747,24 @@ static ssize_t bfq_timeout_sync_store(struct elevator_queue *e,
 	return ret;
 }
 
+static ssize_t bfq_strict_guarantees_store(struct elevator_queue *e,
+				     const char *page, size_t count)
+{
+	struct bfq_data *bfqd = e->elevator_data;
+	unsigned long uninitialized_var(__data);
+	int ret = bfq_var_store(&__data, (page), count);
+
+	if (__data > 1)
+		__data = 1;
+	if (!bfqd->strict_guarantees && __data == 1
+	    && bfqd->bfq_slice_idle < msecs_to_jiffies(8))
+		bfqd->bfq_slice_idle = msecs_to_jiffies(8);
+
+	bfqd->strict_guarantees = __data;
+
+	return ret;
+}
+
 static ssize_t bfq_low_latency_store(struct elevator_queue *e,
 				     const char *page, size_t count)
 {
@@ -4770,6 +4792,7 @@ static struct elv_fs_entry bfq_attrs[] = {
 	BFQ_ATTR(slice_idle),
 	BFQ_ATTR(max_budget),
 	BFQ_ATTR(timeout_sync),
+	BFQ_ATTR(strict_guarantees),
 	BFQ_ATTR(low_latency),
 	BFQ_ATTR(wr_coeff),
 	BFQ_ATTR(wr_max_time),
