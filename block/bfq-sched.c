@@ -428,7 +428,7 @@ static void bfq_active_insert(struct bfq_service_tree *st,
 static unsigned short bfq_ioprio_to_weight(int ioprio)
 {
 	BUG_ON(ioprio < 0 || ioprio >= IOPRIO_BE_NR);
-	return IOPRIO_BE_NR * BFQ_WEIGHT_CONVERSION_COEFF - ioprio;
+	return (IOPRIO_BE_NR - ioprio) * BFQ_WEIGHT_CONVERSION_COEFF;
 }
 
 /**
