@@ -1110,7 +1110,7 @@ static struct cftype bfq_blkg_files[] = {
 #else /* CONFIG_BFQ_GROUP_IOSCHED */
 
 static inline void bfqg_stats_update_io_add(struct bfq_group *bfqg,
-		       struct bfq_group *curr_bfqg, int rw) { }
+			struct bfq_queue *bfqq, int rw) { }
 static inline void bfqg_stats_update_timeslice_used(struct bfq_group *bfqg,
 		       unsigned long time, unsigned long unaccounted_time) { }
 static inline void
@@ -1149,20 +1149,9 @@ bfq_bic_update_cgroup(struct bfq_io_cq *bic, struct bio *bio)
 	return bfqd->root_group;
 }
 
-static void bfq_bfqq_move(struct bfq_data *bfqd,
-			  struct bfq_queue *bfqq,
-			  struct bfq_group *bfqg)
-{
-}
-
 static void bfq_end_wr_async(struct bfq_data *bfqd)
 {
 	bfq_end_wr_async_queues(bfqd, bfqd->root_group);
-}
-
-static void bfq_disconnect_groups(struct bfq_data *bfqd)
-{
-	bfq_put_async_queues(bfqd, bfqd->root_group);
 }
 
 static struct bfq_group *bfq_find_alloc_group(struct bfq_data *bfqd,
@@ -1171,7 +1160,13 @@ static struct bfq_group *bfq_find_alloc_group(struct bfq_data *bfqd,
 	return bfqd->root_group;
 }
 
-static struct bfq_group *bfq_create_group_hierarchy(struct bfq_data *bfqd, int node)
+static struct bfq_group *bfqq_group(struct bfq_queue *bfqq)
+{
+	return bfqq->bfqd->root_group;
+}
+
+static struct bfq_group *
+bfq_create_group_hierarchy(struct bfq_data *bfqd, int node)
 {
 	struct bfq_group *bfqg;
 	int i;
