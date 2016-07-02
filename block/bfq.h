@@ -643,9 +643,9 @@ enum bfqq_expiration {
 	BFQ_BFQQ_PREEMPTED		/* preemption in progress */
 };
 
-#ifdef CONFIG_BFQ_GROUP_IOSCHED
 
 struct bfqg_stats {
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
 	/* total bytes transferred */
 	struct blkg_rwstat		service_bytes;
 	/* total IOs serviced, post merge */
@@ -681,8 +681,10 @@ struct bfqg_stats {
 	uint64_t			start_idle_time;
 	uint64_t			start_empty_time;
 	uint16_t			flags;
+#endif
 };
 
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
 /*
  * struct bfq_group_data - per-blkcg storage for the blkio subsystem.
  *
@@ -777,6 +779,7 @@ bfq_entity_service_tree(struct bfq_entity *entity)
 		bfq_log_bfqq(bfqq->bfqd, bfqq,
 			     "entity_service_tree %p %d",
 			     sched_data->service_tree + idx, idx);
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
 	else {
 		struct bfq_group *bfqg =
 			container_of(entity, struct bfq_group, entity);
@@ -785,7 +788,7 @@ bfq_entity_service_tree(struct bfq_entity *entity)
 			     "entity_service_tree %p %d",
 			     sched_data->service_tree + idx, idx);
 	}
-
+#endif
 	return sched_data->service_tree + idx;
 }
 
@@ -875,7 +878,9 @@ static struct bfq_queue *bfq_get_queue(struct bfq_data *bfqd,
 				       struct bfq_io_cq *bic, gfp_t gfp_mask);
 static void bfq_end_wr_async_queues(struct bfq_data *bfqd,
 				    struct bfq_group *bfqg);
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
 static void bfq_put_async_queues(struct bfq_data *bfqd, struct bfq_group *bfqg);
+#endif
 static void bfq_exit_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq);
 
 #endif /* _BFQ_H */
