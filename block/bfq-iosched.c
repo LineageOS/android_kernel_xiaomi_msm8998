@@ -4224,6 +4224,8 @@ static int bfq_set_request(struct request_queue *q, struct request *rq,
 new_queue:
 	bfqq = bic_to_bfqq(bic, is_sync);
 	if (!bfqq || bfqq == &bfqd->oom_bfqq) {
+		if (bfqq)
+			bfq_put_queue(bfqq);
 		bfqq = bfq_get_queue(bfqd, bio, is_sync, bic, gfp_mask);
 		BUG_ON(!hlist_unhashed(&bfqq->burst_list_node));
 
