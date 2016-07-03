@@ -3551,21 +3551,21 @@ static void bfq_exit_icq(struct io_cq *icq)
 	struct bfq_io_cq *bic = icq_to_bic(icq);
 	struct bfq_data *bfqd = bic_to_bfqd(bic);
 
-	if (bic->bfqq[BLK_RW_ASYNC]) {
-		bfq_exit_bfqq(bfqd, bic->bfqq[BLK_RW_ASYNC]);
-		bic->bfqq[BLK_RW_ASYNC] = NULL;
+	if (bic_to_bfqq(bic, false)) {
+		bfq_exit_bfqq(bfqd, bic_to_bfqq(bic, false));
+		bic_set_bfqq(bic, NULL, false);
 	}
 
-	if (bic->bfqq[BLK_RW_SYNC]) {
+	if (bic_to_bfqq(bic, true)) {
 		/*
 		 * If the bic is using a shared queue, put the reference
 		 * taken on the io_context when the bic started using a
 		 * shared bfq_queue.
 		 */
-		if (bfq_bfqq_coop(bic->bfqq[BLK_RW_SYNC]))
+		if (bfq_bfqq_coop(bic_to_bfqq(bic, true)))
 			put_io_context(icq->ioc);
-		bfq_exit_bfqq(bfqd, bic->bfqq[BLK_RW_SYNC]);
-		bic->bfqq[BLK_RW_SYNC] = NULL;
+		bfq_exit_bfqq(bfqd, bic_to_bfqq(bic, true));
+		bic_set_bfqq(bic, NULL, true);
 	}
 }
 
@@ -3622,7 +3622,7 @@ static void bfq_set_next_ioprio_data(struct bfq_queue *bfqq,
 static void bfq_check_ioprio_change(struct bfq_io_cq *bic, struct bio *bio)
 {
 	struct bfq_data *bfqd;
-	struct bfq_queue *bfqq, *new_bfqq;
+	struct bfq_queue *bfqq;
 	unsigned long uninitialized_var(flags);
 	int ioprio = bic->icq.ioc->ioprio;
 
@@ -3637,20 +3637,17 @@ static void bfq_check_ioprio_change(struct bfq_io_cq *bic, struct bio *bio)
 
 	bic->ioprio = ioprio;
 
-	bfqq = bic->bfqq[BLK_RW_ASYNC];
+	bfqq = bic_to_bfqq(bic, false);
 	if (bfqq) {
-		new_bfqq = bfq_get_queue(bfqd, bio, BLK_RW_ASYNC, bic,
-					 GFP_ATOMIC);
-		if (new_bfqq) {
-			bic->bfqq[BLK_RW_ASYNC] = new_bfqq;
-			bfq_log_bfqq(bfqd, bfqq,
-				     "check_ioprio_change: bfqq %p %d",
-				     bfqq, atomic_read(&bfqq->ref));
-			bfq_put_queue(bfqq);
-		}
+		bfq_put_queue(bfqq);
+		bfqq = bfq_get_queue(bfqd, bio, BLK_RW_ASYNC, bic, GFP_ATOMIC);
+		bic_set_bfqq(bic, bfqq, false);
+		bfq_log_bfqq(bfqd, bfqq,
+			     "check_ioprio_change: bfqq %p %d",
+			     bfqq, atomic_read(&bfqq->ref));
 	}
 
-	bfqq = bic->bfqq[BLK_RW_SYNC];
+	bfqq = bic_to_bfqq(bic, true);
 	if (bfqq)
 		bfq_set_next_ioprio_data(bfqq, bic);
 
