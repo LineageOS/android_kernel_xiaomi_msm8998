@@ -3810,7 +3810,7 @@ static struct bfq_queue *bfq_get_queue(struct bfq_data *bfqd,
 	 * Pin the queue now that it's allocated, scheduler exit will
 	 * prune it.
 	 */
-	if (!is_sync) {
+	if (!is_sync && bfqq != &bfqd->oom_bfqq) {
 		atomic_inc(&bfqq->ref);
 		bfq_log_bfqq(bfqd, bfqq, "get_queue, bfqq not in async: %p, %d",
 			     bfqq, atomic_read(&bfqq->ref));
