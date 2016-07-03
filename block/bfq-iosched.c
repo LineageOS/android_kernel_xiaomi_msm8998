@@ -3786,8 +3786,8 @@ static struct bfq_queue *bfq_get_queue(struct bfq_data *bfqd,
 {
 	const int ioprio = IOPRIO_PRIO_DATA(bic->ioprio);
 	const int ioprio_class = IOPRIO_PRIO_CLASS(bic->ioprio);
-	struct bfq_queue **async_bfqq = NULL;
-	struct bfq_queue *bfqq = NULL;
+	struct bfq_queue **async_bfqq;
+	struct bfq_queue *bfqq;
 
 	if (!is_sync) {
 		struct blkcg *blkcg;
@@ -3800,22 +3800,24 @@ static struct bfq_queue *bfq_get_queue(struct bfq_data *bfqd,
 		async_bfqq = bfq_async_queue_prio(bfqd, bfqg, ioprio_class,
 						  ioprio);
 		bfqq = *async_bfqq;
+		if (bfqq)
+			goto out;
 	}
 
-	if (!bfqq)
-		bfqq = bfq_find_alloc_queue(bfqd, bio, is_sync, bic, gfp_mask);
+	bfqq = bfq_find_alloc_queue(bfqd, bio, is_sync, bic, gfp_mask);
 
 	/*
 	 * Pin the queue now that it's allocated, scheduler exit will
 	 * prune it.
 	 */
-	if (!is_sync && !(*async_bfqq)) {
+	if (!is_sync) {
 		atomic_inc(&bfqq->ref);
 		bfq_log_bfqq(bfqd, bfqq, "get_queue, bfqq not in async: %p, %d",
 			     bfqq, atomic_read(&bfqq->ref));
 		*async_bfqq = bfqq;
 	}
 
+out:
 	atomic_inc(&bfqq->ref);
 	bfq_log_bfqq(bfqd, bfqq, "get_queue, at end: %p, %d", bfqq,
 		     atomic_read(&bfqq->ref));
