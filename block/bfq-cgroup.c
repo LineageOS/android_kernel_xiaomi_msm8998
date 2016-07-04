@@ -608,7 +608,7 @@ static struct bfq_group *__bfq_bic_change_cgroup(struct bfq_data *bfqd,
 			bfq_log_bfqq(bfqd, async_bfqq,
 				     "bic_change_group: %p %d",
 				     async_bfqq,
-				     atomic_read(&async_bfqq->ref));
+				     async_bfqq->ref);
 			bfq_put_queue(async_bfqq);
 		}
 	}

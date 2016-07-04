@@ -645,7 +645,7 @@ static int bfqq_process_refs(struct bfq_queue *bfqq)
 	lockdep_assert_held(bfqq->bfqd->queue->queue_lock);
 
 	io_refs = bfqq->allocated[READ] + bfqq->allocated[WRITE];
-	process_refs = atomic_read(&bfqq->ref) - io_refs - bfqq->entity.on_st;
+	process_refs = bfqq->ref - io_refs - bfqq->entity.on_st;
 	BUG_ON(process_refs < 0);
 	return process_refs;
 }
@@ -1787,7 +1787,7 @@ bfq_setup_merge(struct bfq_queue *bfqq, struct bfq_queue *new_bfqq)
 	 * throughput.
 	 */
 	bfqq->new_bfqq = new_bfqq;
-	atomic_add(process_refs, &new_bfqq->ref);
+	new_bfqq->ref += process_refs;
 	return new_bfqq;
 }
 
@@ -3473,11 +3473,11 @@ static void bfq_put_queue(struct bfq_queue *bfqq)
 	struct bfq_group *bfqg = bfqq_group(bfqq);
 #endif
 
-	BUG_ON(atomic_read(&bfqq->ref) <= 0);
+	BUG_ON(bfqq->ref <= 0);
 
-	bfq_log_bfqq(bfqd, bfqq, "put_queue: %p %d", bfqq,
-		     atomic_read(&bfqq->ref));
-	if (!atomic_dec_and_test(&bfqq->ref))
+	bfq_log_bfqq(bfqd, bfqq, "put_queue: %p %d", bfqq, bfqq->ref);
+	bfqq->ref--;
+	if (bfqq->ref)
 		return;
 
 	BUG_ON(rb_first(&bfqq->sort_list));
@@ -3531,8 +3531,7 @@ static void bfq_exit_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 		bfq_schedule_dispatch(bfqd);
 	}
 
-	bfq_log_bfqq(bfqd, bfqq, "exit_bfqq: %p, %d", bfqq,
-		     atomic_read(&bfqq->ref));
+	bfq_log_bfqq(bfqd, bfqq, "exit_bfqq: %p, %d", bfqq, bfqq->ref);
 
 	bfq_put_cooperator(bfqq);
 
@@ -3642,7 +3641,7 @@ static void bfq_check_ioprio_change(struct bfq_io_cq *bic, struct bio *bio)
 		bic_set_bfqq(bic, bfqq, false);
 		bfq_log_bfqq(bfqd, bfqq,
 			     "check_ioprio_change: bfqq %p %d",
-			     bfqq, atomic_read(&bfqq->ref));
+			     bfqq, bfqq->ref);
 	}
 
 	bfqq = bic_to_bfqq(bic, true);
@@ -3658,7 +3657,7 @@ static void bfq_init_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 	INIT_HLIST_NODE(&bfqq->burst_list_node);
 	BUG_ON(!hlist_unhashed(&bfqq->burst_list_node));
 
-	atomic_set(&bfqq->ref, 0);
+	bfqq->ref = 0;
 	bfqq->bfqd = bfqd;
 
 	if (bic)
@@ -3751,16 +3750,15 @@ static struct bfq_queue *bfq_get_queue(struct bfq_data *bfqd,
 	 * prune it.
 	 */
 	if (async_bfqq) {
-		atomic_inc(&bfqq->ref);
+		bfqq->ref++;
 		bfq_log_bfqq(bfqd, bfqq, "get_queue, bfqq not in async: %p, %d",
-			     bfqq, atomic_read(&bfqq->ref));
+			     bfqq, bfqq->ref);
 		*async_bfqq = bfqq;
 	}
 
 out:
-	atomic_inc(&bfqq->ref);
-	bfq_log_bfqq(bfqd, bfqq, "get_queue, at end: %p, %d", bfqq,
-		     atomic_read(&bfqq->ref));
+	bfqq->ref++;
+	bfq_log_bfqq(bfqd, bfqq, "get_queue, at end: %p, %d", bfqq, bfqq->ref);
 	rcu_read_unlock();
 	return bfqq;
 }
@@ -3936,7 +3934,7 @@ static void bfq_insert_request(struct request_queue *q, struct request *rq)
 			 */
 			new_bfqq->allocated[rq_data_dir(rq)]++;
 			bfqq->allocated[rq_data_dir(rq)]--;
-			atomic_inc(&new_bfqq->ref);
+			new_bfqq->ref++;
 			bfq_clear_bfqq_just_created(bfqq);
 			bfq_put_queue(bfqq);
 			if (bic_to_bfqq(RQ_BIC(rq), 1) == bfqq)
@@ -4106,7 +4104,7 @@ static void bfq_put_request(struct request *rq)
 		rq->elv.priv[1] = NULL;
 
 		bfq_log_bfqq(bfqq->bfqd, bfqq, "put_request %p, %d",
-			     bfqq, atomic_read(&bfqq->ref));
+			     bfqq, bfqq->ref);
 		bfq_put_queue(bfqq);
 	}
 }
@@ -4210,9 +4208,8 @@ new_queue:
 	}
 
 	bfqq->allocated[rw]++;
-	atomic_inc(&bfqq->ref);
-	bfq_log_bfqq(bfqd, bfqq, "set_request: bfqq %p, %d", bfqq,
-		     atomic_read(&bfqq->ref));
+	bfqq->ref++;
+	bfq_log_bfqq(bfqd, bfqq, "set_request: bfqq %p, %d", bfqq, bfqq->ref);
 
 	rq->elv.priv[0] = bic;
 	rq->elv.priv[1] = bfqq;
@@ -4329,7 +4326,7 @@ static void __bfq_put_async_bfqq(struct bfq_data *bfqd,
 	if (bfqq) {
 		bfq_bfqq_move(bfqd, bfqq, root_group);
 		bfq_log_bfqq(bfqd, bfqq, "put_async_bfqq: putting %p, %d",
-			     bfqq, atomic_read(&bfqq->ref));
+			     bfqq, bfqq->ref);
 		bfq_put_queue(bfqq);
 		*bfqq_ptr = NULL;
 	}
@@ -4421,7 +4418,7 @@ static int bfq_init_queue(struct request_queue *q, struct elevator_type *e)
 	 * will not attempt to free it.
 	 */
 	bfq_init_bfqq(bfqd, &bfqd->oom_bfqq, NULL, 1, 0);
-	atomic_inc(&bfqd->oom_bfqq.ref);
+	bfqd->oom_bfqq.ref++;
 	bfqd->oom_bfqq.new_ioprio = BFQ_DEFAULT_QUEUE_IOPRIO;
 	bfqd->oom_bfqq.new_ioprio_class = IOPRIO_CLASS_BE;
 	bfqd->oom_bfqq.entity.new_weight =

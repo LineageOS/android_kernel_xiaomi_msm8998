@@ -452,9 +452,9 @@ static void bfq_get_entity(struct bfq_entity *entity)
 	struct bfq_queue *bfqq = bfq_entity_to_bfqq(entity);
 
 	if (bfqq) {
-		atomic_inc(&bfqq->ref);
+		bfqq->ref++;
 		bfq_log_bfqq(bfqq->bfqd, bfqq, "get_entity: %p %d",
-			     bfqq, atomic_read(&bfqq->ref));
+			     bfqq, bfqq->ref++);
 	}
 }
 
@@ -578,7 +578,7 @@ static void bfq_forget_entity(struct bfq_service_tree *st,
 	if (bfqq) {
 		sd = entity->sched_data;
 		bfq_log_bfqq(bfqq->bfqd, bfqq, "forget_entity: %p %d",
-			     bfqq, atomic_read(&bfqq->ref));
+			     bfqq, bfqq->ref);
 		bfq_put_queue(bfqq);
 	}
 }
