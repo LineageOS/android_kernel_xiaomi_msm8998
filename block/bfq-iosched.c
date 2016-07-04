@@ -4865,7 +4865,7 @@ static int __init bfq_init(void)
 	if (ret)
 		goto err_pol_unreg;
 
-	pr_info("BFQ I/O-scheduler: v8-rc2");
+	pr_info("BFQ I/O-scheduler: v8-rc3");
 
 	return 0;
 
