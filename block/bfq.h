@@ -808,47 +808,6 @@ static struct bfq_data *bic_to_bfqd(struct bfq_io_cq *bic)
 	return bic->icq.q->elevator->elevator_data;
 }
 
-/**
- * bfq_get_bfqd_locked - get a lock to a bfqd using a RCU protected pointer.
- * @ptr: a pointer to a bfqd.
- * @flags: storage for the flags to be saved.
- *
- * This function allows bfqg->bfqd to be protected by the
- * queue lock of the bfqd they reference; the pointer is dereferenced
- * under RCU, so the storage for bfqd is assured to be safe as long
- * as the RCU read side critical section does not end.  After the
- * bfqd->queue->queue_lock is taken the pointer is rechecked, to be
- * sure that no other writer accessed it.  If we raced with a writer,
- * the function returns NULL, with the queue unlocked, otherwise it
- * returns the dereferenced pointer, with the queue locked.
- */
-static struct bfq_data *bfq_get_bfqd_locked(void **ptr, unsigned long *flags)
-{
-	struct bfq_data *bfqd;
-
-	rcu_read_lock();
-	bfqd = rcu_dereference(*(struct bfq_data **)ptr);
-
-	if (bfqd != NULL) {
-		spin_lock_irqsave(bfqd->queue->queue_lock, *flags);
-		if (ptr == NULL)
-			printk(KERN_CRIT "get_bfqd_locked pointer NULL\n");
-		else if (*ptr == bfqd)
-			goto out;
-		spin_unlock_irqrestore(bfqd->queue->queue_lock, *flags);
-	}
-
-	bfqd = NULL;
-out:
-	rcu_read_unlock();
-	return bfqd;
-}
-
-static void bfq_put_bfqd_unlock(struct bfq_data *bfqd, unsigned long *flags)
-{
-	spin_unlock_irqrestore(bfqd->queue->queue_lock, *flags);
-}
-
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
 
 static struct bfq_group *bfq_bfqq_to_bfqg(struct bfq_queue *bfqq)
