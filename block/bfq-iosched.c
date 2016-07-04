@@ -3638,7 +3638,7 @@ static void bfq_check_ioprio_change(struct bfq_io_cq *bic, struct bio *bio)
 	bfqq = bic_to_bfqq(bic, false);
 	if (bfqq) {
 		bfq_put_queue(bfqq);
-		bfqq = bfq_get_queue(bfqd, bio, BLK_RW_ASYNC, bic, GFP_ATOMIC);
+		bfqq = bfq_get_queue(bfqd, bio, BLK_RW_ASYNC, bic, GFP_NOWAIT);
 		bic_set_bfqq(bic, bfqq, false);
 		bfq_log_bfqq(bfqd, bfqq,
 			     "check_ioprio_change: bfqq %p %d",
