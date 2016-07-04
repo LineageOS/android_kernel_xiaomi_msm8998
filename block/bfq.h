@@ -236,7 +236,7 @@ struct bfq_group;
  * All the fields are protected by the queue lock of the containing bfqd.
  */
 struct bfq_queue {
-	atomic_t ref;
+	int ref;
 	struct bfq_data *bfqd;
 
 	unsigned short ioprio, new_ioprio;
