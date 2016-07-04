@@ -833,8 +833,8 @@ static void bfq_check_ioprio_change(struct bfq_io_cq *bic, struct bio *bio);
 static void bfq_put_queue(struct bfq_queue *bfqq);
 static void bfq_dispatch_insert(struct request_queue *q, struct request *rq);
 static struct bfq_queue *bfq_get_queue(struct bfq_data *bfqd,
-				       struct bio *bio, int is_sync,
-				       struct bfq_io_cq *bic, gfp_t gfp_mask);
+				       struct bio *bio, bool is_sync,
+				       struct bfq_io_cq *bic);
 static void bfq_end_wr_async_queues(struct bfq_data *bfqd,
 				    struct bfq_group *bfqg);
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
