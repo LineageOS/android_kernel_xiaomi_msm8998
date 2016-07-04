@@ -3691,48 +3691,6 @@ static void bfq_init_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 	bfqq->seek_history = 1;
 }
 
-static struct bfq_queue *bfq_find_alloc_queue(struct bfq_data *bfqd,
-					      struct bio *bio, int is_sync,
-					      struct bfq_io_cq *bic)
-{
-	struct bfq_group *bfqg;
-	struct bfq_queue *bfqq;
-	struct blkcg *blkcg;
-
-	rcu_read_lock();
-
-	blkcg = bio_blkcg(bio);
-	bfqg = bfq_find_alloc_group(bfqd, blkcg);
-	/* bic always exists here */
-	bfqq = bic_to_bfqq(bic, is_sync);
-
-	/*
-	 * Always try a new alloc if we fall back to the OOM bfqq
-	 * originally, since it should just be a temporary situation.
-	 */
-	if (!bfqq || bfqq == &bfqd->oom_bfqq) {
-		bfqq = kmem_cache_alloc_node(bfq_pool,
-					     GFP_NOWAIT | __GFP_ZERO,
-					     bfqd->queue->node);
-
-		if (bfqq) {
-			bfq_init_bfqq(bfqd, bfqq, bic, current->pid,
-                                      is_sync);
-			bfq_init_entity(&bfqq->entity, bfqg);
-			bfq_log_bfqq(bfqd, bfqq, "allocated");
-		} else {
-			bfqq = &bfqd->oom_bfqq;
-			bfq_log_bfqq(bfqd, bfqq, "using oom bfqq");
-		}
-	}
-
-	rcu_read_unlock();
-
-	BUG_ON(bfqq->entity.budget < 0);
-
-	return bfqq;
-}
-
 static struct bfq_queue **bfq_async_queue_prio(struct bfq_data *bfqd,
 					       struct bfq_group *bfqg,
 					       int ioprio_class, int ioprio)
@@ -3758,17 +3716,15 @@ static struct bfq_queue *bfq_get_queue(struct bfq_data *bfqd,
 {
 	const int ioprio = IOPRIO_PRIO_DATA(bic->ioprio);
 	const int ioprio_class = IOPRIO_PRIO_CLASS(bic->ioprio);
-	struct bfq_queue **async_bfqq;
+	struct bfq_queue **async_bfqq = NULL;
 	struct bfq_queue *bfqq;
+	struct bfq_group *bfqg;
+
+	rcu_read_lock();
+
+	bfqg = bfq_find_alloc_group(bfqd, bio_blkcg(bio));
 
 	if (!is_sync) {
-		struct blkcg *blkcg;
-		struct bfq_group *bfqg;
-
-		rcu_read_lock();
-		blkcg = bio_blkcg(bio);
-		rcu_read_unlock();
-		bfqg = bfq_find_alloc_group(bfqd, blkcg);
 		async_bfqq = bfq_async_queue_prio(bfqd, bfqg, ioprio_class,
 						  ioprio);
 		bfqq = *async_bfqq;
@@ -3776,13 +3732,25 @@ static struct bfq_queue *bfq_get_queue(struct bfq_data *bfqd,
 			goto out;
 	}
 
-	bfqq = bfq_find_alloc_queue(bfqd, bio, is_sync, bic);
+	bfqq = kmem_cache_alloc_node(bfq_pool, GFP_NOWAIT | __GFP_ZERO,
+				     bfqd->queue->node);
+
+	if (bfqq) {
+		bfq_init_bfqq(bfqd, bfqq, bic, current->pid,
+			      is_sync);
+		bfq_init_entity(&bfqq->entity, bfqg);
+		bfq_log_bfqq(bfqd, bfqq, "allocated");
+	} else {
+		bfqq = &bfqd->oom_bfqq;
+		bfq_log_bfqq(bfqd, bfqq, "using oom bfqq");
+		goto out;
+	}
 
 	/*
 	 * Pin the queue now that it's allocated, scheduler exit will
 	 * prune it.
 	 */
-	if (!is_sync && bfqq != &bfqd->oom_bfqq) {
+	if (async_bfqq) {
 		atomic_inc(&bfqq->ref);
 		bfq_log_bfqq(bfqd, bfqq, "get_queue, bfqq not in async: %p, %d",
 			     bfqq, atomic_read(&bfqq->ref));
@@ -3793,6 +3761,7 @@ out:
 	atomic_inc(&bfqq->ref);
 	bfq_log_bfqq(bfqd, bfqq, "get_queue, at end: %p, %d", bfqq,
 		     atomic_read(&bfqq->ref));
+	rcu_read_unlock();
 	return bfqq;
 }
 
