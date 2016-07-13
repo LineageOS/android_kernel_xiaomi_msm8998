@@ -4819,7 +4819,7 @@ static struct blkcg_policy blkcg_policy_bfq = {
 static int __init bfq_init(void)
 {
 	int ret;
-	char msg[50] = "BFQ I/O-scheduler: v8-rc3";
+	char msg[50] = "BFQ I/O-scheduler: v8-rc4";
 
 	/*
 	 * Can be 0 on HZ < 1000 setups.
