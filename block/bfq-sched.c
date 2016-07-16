@@ -896,12 +896,14 @@ static void __bfq_activate_entity(struct bfq_entity *entity,
 	 * latter queues may then monopolize the device for a lot of
 	 * time. This would simply break service guarantees.
 	 *
-	 * To reduce this problem, push up the backshifted timestamps
-	 * of bfqq a little bit: just enough to let the finish
-	 * timestamp of bfqq be equal to the current value of the
-	 * system virtual time. This may introduce a little unfairness
-	 * among queues with backshifted timestamps, but it does not
-	 * break worst-case fairness guarantees.
+	 * To reduce this problem, push up a little bit the
+	 * backshifted timestamps of the queue associated with this
+	 * entity (only a queue can happen to have the backshifted
+	 * flag set): just enough to let the finish timestamp of the
+	 * queue be equal to the current value of the system virtual
+	 * time. This may introduce a little unfairness among queues
+	 * with backshifted timestamps, but it does not break
+	 * worst-case fairness guarantees.
 	 *
 	 * As a special case, if bfqq is weight-raised, push up
 	 * timestamps much less, to keep very low the probability that
