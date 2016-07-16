@@ -454,7 +454,7 @@ static void bfq_get_entity(struct bfq_entity *entity)
 	if (bfqq) {
 		bfqq->ref++;
 		bfq_log_bfqq(bfqq->bfqd, bfqq, "get_entity: %p %d",
-			     bfqq, bfqq->ref++);
+			     bfqq, bfqq->ref);
 	}
 }
 
