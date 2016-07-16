@@ -2445,14 +2445,13 @@ static void __bfq_bfqq_recalc_budget(struct bfq_data *bfqd,
 		BUG_ON(reason == BFQ_BFQQ_TOO_IDLE ||
 		       reason == BFQ_BFQQ_NO_MORE_REQUESTS);
 		bfqq->entity.budget = max_t(unsigned long, bfqq->max_budget,
-					    bfq_serv_to_charge(bfqq->next_rq,
-							       bfqq));
+					    bfq_serv_to_charge(next_rq, bfqq));
 		BUG_ON(!bfq_bfqq_busy(bfqq));
 		BUG_ON(RB_EMPTY_ROOT(&bfqq->sort_list));
 	}
 
 	bfq_log_bfqq(bfqd, bfqq, "head sect: %u, new budget %d",
-			bfqq->next_rq ? blk_rq_sectors(bfqq->next_rq) : 0,
+			next_rq ? blk_rq_sectors(next_rq) : 0,
 			bfqq->entity.budget);
 }
 
