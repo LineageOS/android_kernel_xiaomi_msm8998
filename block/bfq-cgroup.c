@@ -1112,12 +1112,10 @@ static struct cftype bfq_blkg_files[] = {
 
 static inline void bfqg_stats_update_io_add(struct bfq_group *bfqg,
 			struct bfq_queue *bfqq, int rw) { }
-static inline void bfqg_stats_update_timeslice_used(struct bfq_group *bfqg,
-		       unsigned long time, unsigned long unaccounted_time) { }
-static inline void
-bfqg_stats_update_io_remove(struct bfq_group *bfqg, int rw) { }
-static inline void
-bfqg_stats_update_io_merged(struct bfq_group *bfqg, int rw) { }
+static inline void bfqg_stats_update_io_remove(struct bfq_group *bfqg,
+					       int rw) { }
+static inline void bfqg_stats_update_io_merged(struct bfq_group *bfqg,
+					       int rw) { }
 static inline void bfqg_stats_update_completion(struct bfq_group *bfqg,
 			uint64_t start_time, uint64_t io_start_time, int rw) { }
 static inline void
