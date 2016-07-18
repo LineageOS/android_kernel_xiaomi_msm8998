@@ -957,6 +957,7 @@ static void __bfq_activate_entity(struct bfq_entity *entity,
 /**
  * bfq_activate_entity - activate an entity and its ancestors if necessary.
  * @entity: the entity to activate.
+ * @non_blocking_wait_rq: true if this entity was waiting for a request
  *
  * Activate @entity and all the entities on the path from it to the root.
  */
