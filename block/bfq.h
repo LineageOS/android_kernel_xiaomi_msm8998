@@ -198,9 +198,6 @@ struct bfq_group;
  * @flags: status flags.
  * @bfqq_list: node for active/idle bfqq list inside our bfqd.
  * @burst_list_node: node for the device's burst list.
- * @seek_samples: number of seeks sampled
- * @seek_total: sum of the distances of the seeks sampled
- * @seek_history: bit vector: a 1 for each seeky requests in history
  * @last_request_pos: position of the last request enqueued
  * @requests_within_timer: number of consecutive pairs of request completion
  *                         and arrival, such that the queue becomes idle
@@ -306,7 +303,7 @@ struct bfq_ttime {
  * @bfqq: array of two process queues, the sync and the async
  * @ttime: associated @bfq_ttime struct
  * @ioprio: per (request_queue, blkcg) ioprio.
- * @blkcg_serial: serial of the blkcg the related io_cq belongs to.
+ * @blkcg_serial_nr: serial of the blkcg the related io_cq belongs to.
  * @wr_time_left: snapshot of the time left before weight raising ends
  *                for the sync queue associated to this process; this
  *		  snapshot is taken to remember this value while the weight
@@ -646,10 +643,6 @@ enum bfqq_expiration {
 
 struct bfqg_stats {
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
-	/* total bytes transferred */
-	struct blkg_rwstat		service_bytes;
-	/* total IOs serviced, post merge */
-	struct blkg_rwstat		serviced;
 	/* number of ios merged */
 	struct blkg_rwstat		merged;
 	/* total time spent on device in ns, may not be accurate w/ queueing */
@@ -658,12 +651,8 @@ struct bfqg_stats {
 	struct blkg_rwstat		wait_time;
 	/* number of IOs queued up */
 	struct blkg_rwstat		queued;
-	/* total sectors transferred */
-	struct blkg_stat		sectors;
 	/* total disk time and nr sectors dispatched by this group */
 	struct blkg_stat		time;
-	/* time not charged to this cgroup */
-	struct blkg_stat		unaccounted_time;
 	/* sum of number of ios queued across all samples */
 	struct blkg_stat		avg_queue_size_sum;
 	/* count of samples taken for average */
@@ -715,7 +704,7 @@ struct bfq_group_data {
  *                   unused for the root group. Used to know whether there
  *                   are groups with more than one active @bfq_entity
  *                   (see the comments to the function
- *                   bfq_bfqq_must_not_expire()).
+ *                   bfq_bfqq_may_idle()).
  * @rq_pos_tree: rbtree sorted by next_request position, used when
  *               determining if two or more queues have interleaving
  *               requests (see bfq_find_close_cooperator()).
@@ -748,7 +737,6 @@ struct bfq_group {
 	struct rb_root rq_pos_tree;
 
 	struct bfqg_stats stats;
-	struct bfqg_stats dead_stats;	/* stats pushed from dead children */
 };
 
 #else
