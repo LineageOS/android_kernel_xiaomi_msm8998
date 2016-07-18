@@ -364,21 +364,6 @@ enum bfq_device_speed {
  *                     details).
  * @busy_queues: number of bfq_queues containing requests (including the
  *		 queue in service, even if it is idling).
- * @busy_in_flight_queues: number of @bfq_queues containing pending or
- *                         in-flight requests, plus the @bfq_queue in
- *                         service, even if idle but waiting for the
- *                         possible arrival of its next sync request. This
- *                         field is updated only if the device is rotational,
- *                         but used only if the device is also NCQ-capable.
- *                         The reason why the field is updated also for non-
- *                         NCQ-capable rotational devices is related to the
- *                         fact that the value of @hw_tag may be set also
- *                         later than when busy_in_flight_queues may need to
- *                         be incremented for the first time(s). Taking also
- *                         this possibility into account, to avoid unbalanced
- *                         increments/decrements, would imply more overhead
- *                         than just updating busy_in_flight_queues
- *                         regardless of the value of @hw_tag.
  * @wr_busy_queues: number of weight-raised busy @bfq_queues.
  * @queued: number of queued requests.
  * @rq_in_driver: number of requests dispatched and waiting for completion.
@@ -471,7 +456,6 @@ struct bfq_data {
 	struct rb_root group_weights_tree;
 
 	int busy_queues;
-	int busy_in_flight_queues;
 	int wr_busy_queues;
 	int queued;
 	int rq_in_driver;
