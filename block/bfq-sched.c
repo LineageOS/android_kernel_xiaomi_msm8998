@@ -690,6 +690,13 @@ __bfq_entity_update_weight_prio(struct bfq_service_tree *old_st,
 		 * associated with its new weight.
 		 */
 		if (prev_weight != new_weight) {
+			if (bfqq)
+				bfq_log_bfqq(bfqq->bfqd, bfqq,
+					     "weight changed %d %d(%d %d)",
+					     prev_weight, new_weight,
+					     entity->orig_weight,
+					     bfqq->wr_coeff);
+
 			root = bfqq ? &bfqd->queue_weights_tree :
 				      &bfqd->group_weights_tree;
 			bfq_weights_tree_remove(bfqd, entity, root);
