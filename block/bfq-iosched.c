@@ -1081,12 +1081,15 @@ static void bfq_update_bfqq_wr_on_rq_arrival(struct bfq_data *bfqd,
 {
 	if (old_wr_coeff == 1 && wr_or_deserves_wr) {
 		/* start a weight-raising period */
-		bfqq->wr_coeff = bfqd->bfq_wr_coeff;
-		if (interactive) /* update wr duration */
+		if (interactive) {
+			bfqq->wr_coeff = bfqd->bfq_wr_coeff;
 			bfqq->wr_cur_max_time = bfq_wr_duration(bfqd);
-		else
+		} else {
+			bfqq->wr_coeff = bfqd->bfq_wr_coeff *
+				BFQ_SOFTRT_WEIGHT_FACTOR;
 			bfqq->wr_cur_max_time =
 				bfqd->bfq_wr_rt_max_time;
+		}
 		/*
 		 * If needed, further reduce budget to make sure it is
 		 * close to bfqq's backlog, so as to reduce the
@@ -1166,6 +1169,8 @@ static void bfq_update_bfqq_wr_on_rq_arrival(struct bfq_data *bfqd,
 			bfqq->last_wr_start_finish = jiffies;
 			bfqq->wr_cur_max_time =
 				bfqd->bfq_wr_rt_max_time;
+			bfqq->wr_coeff = bfqd->bfq_wr_coeff *
+				BFQ_SOFTRT_WEIGHT_FACTOR;
 			bfq_log_bfqq(bfqd, bfqq,
 				     "switching to soft_rt wr, or "
 				     " just moving forward duration");
@@ -1325,7 +1330,7 @@ static void bfq_bfqq_handle_idle_busy_switch(struct bfq_data *bfqd,
 	 * function bfq_bfqq_update_budg_for_activation).
 	 */
 	if (bfqd->in_service_queue && bfqq_wants_to_preempt &&
-	    bfqd->in_service_queue->wr_coeff == 1 &&
+	    bfqd->in_service_queue->wr_coeff < bfqq->wr_coeff &&
 	    next_queue_may_preempt(bfqd)) {
 		struct bfq_queue *in_serv =
 			bfqd->in_service_queue;
