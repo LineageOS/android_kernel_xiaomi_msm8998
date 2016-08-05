@@ -84,7 +84,7 @@ struct bfq_sched_data {
  *                             with a given weight.
  */
 struct bfq_weight_counter {
-	short int weight; /* weight of the entities this counter refers to */
+	unsigned int weight; /* weight of the entities this counter refers to */
 	unsigned int num_active; /* nr of active entities with this weight */
 	/*
 	 * Weights tree member (see bfq_data's @queue_weights_tree and
@@ -149,11 +149,11 @@ struct bfq_entity {
 	/* budget, used also to calculate F_i: F_i = S_i + @budget / @weight */
 	int budget;
 
-	unsigned short weight;	/* weight of the queue */
-	unsigned short new_weight; /* next weight if a change is in progress */
+	unsigned int weight;	 /* weight of the queue */
+	unsigned int new_weight; /* next weight if a change is in progress */
 
 	/* original weight, used to implement weight boosting */
-	unsigned short orig_weight;
+	unsigned int orig_weight;
 
 	/* parent entity, for hierarchical scheduling */
 	struct bfq_entity *parent;
@@ -697,7 +697,7 @@ struct bfq_group_data {
 	/* must be the first member */
 	struct blkcg_policy_data pd;
 
-	unsigned short weight;
+	unsigned int weight;
 };
 
 /**
