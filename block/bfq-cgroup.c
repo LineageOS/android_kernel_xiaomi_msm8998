@@ -450,29 +450,29 @@ static void bfq_group_set_parent(struct bfq_group *bfqg,
 	entity->sched_data = &parent->sched_data;
 }
 
-static struct bfq_group *bfq_find_alloc_group(struct bfq_data *bfqd,
-					      struct blkcg *blkcg)
+static struct bfq_group *bfq_lookup_bfqg(struct bfq_data *bfqd,
+					 struct blkcg *blkcg)
 {
-	struct request_queue *q = bfqd->queue;
-	struct bfq_group *bfqg = NULL, *parent;
-	struct bfq_entity *entity = NULL;
+	struct blkcg_gq *blkg;
+
+	blkg = blkg_lookup(blkcg, bfqd->queue);
+	if (likely(blkg))
+		return blkg_to_bfqg(blkg);
+	return NULL;
+}
+
+static struct bfq_group *bfq_find_set_group(struct bfq_data *bfqd,
+					    struct blkcg *blkcg)
+{
+	struct bfq_group *bfqg, *parent;
+	struct bfq_entity *entity;
 
 	assert_spin_locked(bfqd->queue->queue_lock);
 
-	/* avoid lookup for the common case where there's no blkcg */
-	if (blkcg == &blkcg_root) {
-		bfqg = bfqd->root_group;
-	} else {
-		struct blkcg_gq *blkg;
+	bfqg = bfq_lookup_bfqg(bfqd, blkcg);
 
-		blkg = blkg_lookup_create(blkcg, q);
-		if (!IS_ERR(blkg))
-			bfqg = blkg_to_bfqg(blkg);
-		else /* fallback to root_group */
-			bfqg = bfqd->root_group;
-	}
-
-	BUG_ON(!bfqg);
+	if (unlikely(!bfqg))
+		return NULL;
 
 	/*
 	 * Update chain of bfq_groups as we might be handling a leaf group
@@ -599,7 +599,7 @@ static struct bfq_group *__bfq_bic_change_cgroup(struct bfq_data *bfqd,
 
 	lockdep_assert_held(bfqd->queue->queue_lock);
 
-	bfqg = bfq_find_alloc_group(bfqd, blkcg);
+	bfqg = bfq_find_set_group(bfqd, blkcg);
 	if (async_bfqq) {
 		entity = &async_bfqq->entity;
 
@@ -1153,8 +1153,8 @@ static void bfq_end_wr_async(struct bfq_data *bfqd)
 	bfq_end_wr_async_queues(bfqd, bfqd->root_group);
 }
 
-static struct bfq_group *bfq_find_alloc_group(struct bfq_data *bfqd,
-                                              struct blkcg *blkcg)
+static struct bfq_group *bfq_find_set_group(struct bfq_data *bfqd,
+					    struct blkcg *blkcg)
 {
 	return bfqd->root_group;
 }
