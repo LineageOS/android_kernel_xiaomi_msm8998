@@ -3736,7 +3736,11 @@ static struct bfq_queue *bfq_get_queue(struct bfq_data *bfqd,
 
 	rcu_read_lock();
 
-	bfqg = bfq_find_alloc_group(bfqd, bio_blkcg(bio));
+	bfqg = bfq_find_set_group(bfqd, bio_blkcg(bio));
+	if (!bfqg) {
+		bfqq = &bfqd->oom_bfqq;
+		goto out;
+	}
 
 	if (!is_sync) {
 		async_bfqq = bfq_async_queue_prio(bfqd, bfqg, ioprio_class,
