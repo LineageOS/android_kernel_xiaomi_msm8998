@@ -1108,9 +1108,10 @@ static void bfq_update_bfqq_wr_on_rq_arrival(struct bfq_data *bfqd,
 			     jiffies,
 			     jiffies_to_msecs(bfqq->wr_cur_max_time));
 	} else if (old_wr_coeff > 1) {
-		if (interactive) /* update wr duration */
+		if (interactive) { /* update wr coeff and duration */
+			bfqq->wr_coeff = bfqd->bfq_wr_coeff;
 			bfqq->wr_cur_max_time = bfq_wr_duration(bfqd);
-		else if (in_burst) {
+		} else if (in_burst) {
 			bfqq->wr_coeff = 1;
 			bfq_log_bfqq(bfqd, bfqq,
 				     "wrais ending at %lu, rais_max_time %u",
