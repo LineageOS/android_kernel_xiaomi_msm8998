@@ -304,11 +304,11 @@ struct bfq_queue {
  * struct bfq_ttime - per process thinktime stats.
  */
 struct bfq_ttime {
-	unsigned long last_end_request; /* completion time of last request */
+	u64 last_end_request; /* completion time of last request */
 
-	unsigned long ttime_total; /* total process thinktime */
+	u64 ttime_total; /* total process thinktime */
 	unsigned long ttime_samples; /* number of thinktime samples */
-	unsigned long ttime_mean; /* average process thinktime */
+	u64 ttime_mean; /* average process thinktime */
 
 };
 
@@ -455,7 +455,7 @@ struct bfq_data {
 	/* maximum allowed backward seek */
 	unsigned int bfq_back_max;
 	/* maximum idling time */
-	unsigned int bfq_slice_idle;
+	u64 bfq_slice_idle;
 	/* last time CLASS_IDLE was served */
 	u64 bfq_class_idle_last_service;
 
