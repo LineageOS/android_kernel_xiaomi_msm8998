@@ -73,8 +73,8 @@
 #include "blk.h"
 #include "bfq.h"
 
-/* Expiration time of sync (0) and async (1) requests, in jiffies. */
-static const int bfq_fifo_expire[2] = { HZ / 4, HZ / 8 };
+/* Expiration time of sync (0) and async (1) requests, in ns. */
+static const u64 bfq_fifo_expire[2] = { NSEC_PER_SEC / 4, NSEC_PER_SEC / 8 };
 
 /* Maximum backwards seek, in KiB. */
 static const int bfq_back_max = 16 * 1024;
@@ -82,8 +82,8 @@ static const int bfq_back_max = 16 * 1024;
 /* Penalty of a backwards seek, in number of sectors. */
 static const int bfq_back_penalty = 2;
 
-/* Idling period duration, in jiffies. */
-static int bfq_slice_idle = HZ / 125;
+/* Idling period duration, in ns. */
+static u64 bfq_slice_idle = NSEC_PER_SEC / 125;
 
 /* Minimum number of assigned budgets for which stats are safe to compute. */
 static const int bfq_stats_min_budgets = 194;
@@ -1206,7 +1206,7 @@ static void bfq_bfqq_handle_idle_busy_switch(struct bfq_data *bfqd,
 		 */
 		arrived_in_time = time_is_after_jiffies(
 			RQ_BIC(rq)->ttime.last_end_request +
-			bfqd->bfq_slice_idle * 3);
+			nsecs_to_jiffies(bfqd->bfq_slice_idle * 3));
 
 	bfq_log_bfqq(bfqd, bfqq,
 		     "bfq_add_request non-busy: "
@@ -2189,7 +2189,7 @@ static void bfq_arm_slice_timer(struct bfq_data *bfqd)
 	 * assigned budget before reducing the waiting time to
 	 * BFQ_MIN_TT. This happened to help reduce latency.
 	 */
-	sl = bfqd->bfq_slice_idle;
+	sl = nsecs_to_jiffies(bfqd->bfq_slice_idle);
 	/*
 	 * Unless the queue is being weight-raised or the scenario is
 	 * asymmetric, grant only minimum idle time if the queue
@@ -2205,7 +2205,8 @@ static void bfq_arm_slice_timer(struct bfq_data *bfqd)
 		sl = min(sl, msecs_to_jiffies(BFQ_MIN_TT));
 
 	bfqd->last_idling_start = ktime_get();
-	mod_timer(&bfqd->idle_slice_timer, jiffies + sl);
+	hrtimer_start(&bfqd->idle_slice_timer, ns_to_ktime(sl),
+		      HRTIMER_MODE_REL);
 	bfqg_stats_set_start_idle_time(bfqq_group(bfqq));
 	bfq_log(bfqd, "arm idle: %u/%u ms",
 		jiffies_to_msecs(sl), jiffies_to_msecs(bfqd->bfq_slice_idle));
@@ -3208,7 +3209,7 @@ static struct bfq_queue *bfq_select_queue(struct bfq_data *bfqd)
 	bfq_log_bfqq(bfqd, bfqq, "select_queue: already in-service queue");
 
 	if (bfq_may_expire_for_budg_timeout(bfqq) &&
-	    !timer_pending(&bfqd->idle_slice_timer) &&
+	    !hrtimer_active(&bfqd->idle_slice_timer) &&
 	    !bfq_bfqq_must_idle(bfqq))
 		goto expire;
 
@@ -3228,7 +3229,7 @@ static struct bfq_queue *bfq_select_queue(struct bfq_data *bfqd)
 			 * not disable disk idling even when a new request
 			 * arrives.
 			 */
-			if (timer_pending(&bfqd->idle_slice_timer)) {
+			if (hrtimer_active(&bfqd->idle_slice_timer)) {
 				/*
 				 * If we get here: 1) at least a new request
 				 * has arrived but we have not disabled the
@@ -3243,7 +3244,7 @@ static struct bfq_queue *bfq_select_queue(struct bfq_data *bfqd)
 				 * So we disable idling.
 				 */
 				bfq_clear_bfqq_wait_request(bfqq);
-				del_timer(&bfqd->idle_slice_timer);
+				hrtimer_try_to_cancel(&bfqd->idle_slice_timer);
 				bfqg_stats_update_idle_time(bfqq_group(bfqq));
 			}
 			goto keep_queue;
@@ -3255,7 +3256,7 @@ static struct bfq_queue *bfq_select_queue(struct bfq_data *bfqd)
 	 * for a new request, or has requests waiting for a completion and
 	 * may idle after their completion, then keep it anyway.
 	 */
-	if (timer_pending(&bfqd->idle_slice_timer) ||
+	if (hrtimer_active(&bfqd->idle_slice_timer) ||
 	    (bfqq->dispatched != 0 && bfq_bfqq_may_idle(bfqq))) {
 		bfqq = NULL;
 		goto keep_queue;
@@ -3466,7 +3467,7 @@ static int bfq_dispatch_requests(struct request_queue *q, int force)
 	BUG_ON(bfqq->entity.budget < bfqq->entity.service);
 
 	bfq_clear_bfqq_wait_request(bfqq);
-	BUG_ON(timer_pending(&bfqd->idle_slice_timer));
+	BUG_ON(hrtimer_active(&bfqd->idle_slice_timer));
 
 	if (!bfq_dispatch_request(bfqd, bfqq))
 		return 0;
@@ -3911,7 +3912,7 @@ static void bfq_rq_enqueued(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 		 * timer.
 		 */
 		bfq_clear_bfqq_wait_request(bfqq);
-		del_timer(&bfqd->idle_slice_timer);
+		hrtimer_try_to_cancel(&bfqd->idle_slice_timer);
 		bfqg_stats_update_idle_time(bfqq_group(bfqq));
 
 		/*
@@ -4283,9 +4284,10 @@ static void bfq_kick_queue(struct work_struct *work)
  * Handler of the expiration of the timer running if the in-service queue
  * is idling inside its time slice.
  */
-static void bfq_idle_slice_timer(unsigned long data)
+static enum hrtimer_restart bfq_idle_slice_timer(struct hrtimer *timer)
 {
-	struct bfq_data *bfqd = (struct bfq_data *)data;
+	struct bfq_data *bfqd = container_of(timer, struct bfq_data,
+					     idle_slice_timer);
 	struct bfq_queue *bfqq;
 	unsigned long flags;
 	enum bfqq_expiration reason;
@@ -4328,11 +4330,12 @@ schedule_dispatch:
 	bfq_schedule_dispatch(bfqd);
 
 	spin_unlock_irqrestore(bfqd->queue->queue_lock, flags);
+	return HRTIMER_NORESTART;
 }
 
 static void bfq_shutdown_timer_wq(struct bfq_data *bfqd)
 {
-	del_timer_sync(&bfqd->idle_slice_timer);
+	hrtimer_cancel(&bfqd->idle_slice_timer);
 	cancel_work_sync(&bfqd->unplug_work);
 }
 
@@ -4389,7 +4392,7 @@ static void bfq_exit_queue(struct elevator_queue *e)
 
 	bfq_shutdown_timer_wq(bfqd);
 
-	BUG_ON(timer_pending(&bfqd->idle_slice_timer));
+	BUG_ON(hrtimer_active(&bfqd->idle_slice_timer));
 
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
 	blkcg_deactivate_policy(q, &blkcg_policy_bfq);
@@ -4464,9 +4467,9 @@ static int bfq_init_queue(struct request_queue *q, struct elevator_type *e)
 	bfq_init_root_group(bfqd->root_group, bfqd);
 	bfq_init_entity(&bfqd->oom_bfqq.entity, bfqd->root_group);
 
-	init_timer(&bfqd->idle_slice_timer);
+	hrtimer_init(&bfqd->idle_slice_timer, CLOCK_MONOTONIC,
+		     HRTIMER_MODE_REL);
 	bfqd->idle_slice_timer.function = bfq_idle_slice_timer;
-	bfqd->idle_slice_timer.data = (unsigned long)bfqd;
 
 	bfqd->queue_weights_tree = RB_ROOT;
 	bfqd->group_weights_tree = RB_ROOT;
@@ -4612,16 +4615,18 @@ static ssize_t bfq_weights_show(struct elevator_queue *e, char *page)
 static ssize_t __FUNC(struct elevator_queue *e, char *page)		\
 {									\
 	struct bfq_data *bfqd = e->elevator_data;			\
-	unsigned int __data = __VAR;					\
-	if (__CONV)							\
+	u64 __data = __VAR;						\
+	if (__CONV == 1)						\
 		__data = jiffies_to_msecs(__data);			\
+	else if (__CONV == 2)						\
+		__data = div_u64(__data, NSEC_PER_MSEC);		\
 	return bfq_var_show(__data, (page));				\
 }
-SHOW_FUNCTION(bfq_fifo_expire_sync_show, bfqd->bfq_fifo_expire[1], 1);
-SHOW_FUNCTION(bfq_fifo_expire_async_show, bfqd->bfq_fifo_expire[0], 1);
+SHOW_FUNCTION(bfq_fifo_expire_sync_show, bfqd->bfq_fifo_expire[1], 2);
+SHOW_FUNCTION(bfq_fifo_expire_async_show, bfqd->bfq_fifo_expire[0], 2);
 SHOW_FUNCTION(bfq_back_seek_max_show, bfqd->bfq_back_max, 0);
 SHOW_FUNCTION(bfq_back_seek_penalty_show, bfqd->bfq_back_penalty, 0);
-SHOW_FUNCTION(bfq_slice_idle_show, bfqd->bfq_slice_idle, 1);
+SHOW_FUNCTION(bfq_slice_idle_show, bfqd->bfq_slice_idle, 2);
 SHOW_FUNCTION(bfq_max_budget_show, bfqd->bfq_user_max_budget, 0);
 SHOW_FUNCTION(bfq_timeout_sync_show, bfqd->bfq_timeout, 1);
 SHOW_FUNCTION(bfq_strict_guarantees_show, bfqd->strict_guarantees, 0);
@@ -4634,6 +4639,17 @@ SHOW_FUNCTION(bfq_wr_min_inter_arr_async_show, bfqd->bfq_wr_min_inter_arr_async,
 SHOW_FUNCTION(bfq_wr_max_softrt_rate_show, bfqd->bfq_wr_max_softrt_rate, 0);
 #undef SHOW_FUNCTION
 
+#define USEC_SHOW_FUNCTION(__FUNC, __VAR)				\
+static ssize_t __FUNC(struct elevator_queue *e, char *page)		\
+{									\
+	struct bfq_data *bfqd = e->elevator_data;			\
+	u64 __data = __VAR;						\
+	__data = div_u64(__data, NSEC_PER_USEC);			\
+	return bfq_var_show(__data, (page));				\
+}
+USEC_SHOW_FUNCTION(bfq_slice_idle_us_show, bfqd->bfq_slice_idle);
+#undef USEC_SHOW_FUNCTION
+
 #define STORE_FUNCTION(__FUNC, __PTR, MIN, MAX, __CONV)			\
 static ssize_t								\
 __FUNC(struct elevator_queue *e, const char *page, size_t count)	\
@@ -4645,20 +4661,22 @@ __FUNC(struct elevator_queue *e, const char *page, size_t count)	\
 		__data = (MIN);						\
 	else if (__data > (MAX))					\
 		__data = (MAX);						\
-	if (__CONV)							\
+	if (__CONV == 1)						\
 		*(__PTR) = msecs_to_jiffies(__data);			\
+	else if (__CONV == 2)						\
+		*(__PTR) = (u64)__data * NSEC_PER_MSEC;			\
 	else								\
 		*(__PTR) = __data;					\
 	return ret;							\
 }
 STORE_FUNCTION(bfq_fifo_expire_sync_store, &bfqd->bfq_fifo_expire[1], 1,
-		INT_MAX, 1);
+		INT_MAX, 2);
 STORE_FUNCTION(bfq_fifo_expire_async_store, &bfqd->bfq_fifo_expire[0], 1,
-		INT_MAX, 1);
+		INT_MAX, 2);
 STORE_FUNCTION(bfq_back_seek_max_store, &bfqd->bfq_back_max, 0, INT_MAX, 0);
 STORE_FUNCTION(bfq_back_seek_penalty_store, &bfqd->bfq_back_penalty, 1,
 		INT_MAX, 0);
-STORE_FUNCTION(bfq_slice_idle_store, &bfqd->bfq_slice_idle, 0, INT_MAX, 1);
+STORE_FUNCTION(bfq_slice_idle_store, &bfqd->bfq_slice_idle, 0, INT_MAX, 2);
 STORE_FUNCTION(bfq_wr_coeff_store, &bfqd->bfq_wr_coeff, 1, INT_MAX, 0);
 STORE_FUNCTION(bfq_wr_max_time_store, &bfqd->bfq_wr_max_time, 0, INT_MAX, 1);
 STORE_FUNCTION(bfq_wr_rt_max_time_store, &bfqd->bfq_wr_rt_max_time, 0, INT_MAX,
@@ -4670,6 +4688,23 @@ STORE_FUNCTION(bfq_wr_min_inter_arr_async_store,
 STORE_FUNCTION(bfq_wr_max_softrt_rate_store, &bfqd->bfq_wr_max_softrt_rate, 0,
 		INT_MAX, 0);
 #undef STORE_FUNCTION
+
+#define USEC_STORE_FUNCTION(__FUNC, __PTR, MIN, MAX)			\
+static ssize_t __FUNC(struct elevator_queue *e, const char *page, size_t count)\
+{									\
+	struct bfq_data *bfqd = e->elevator_data;			\
+	unsigned long __data;						\
+	int ret = bfq_var_store(&__data, (page), count);		\
+	if (__data < (MIN))						\
+		__data = (MIN);						\
+	else if (__data > (MAX))					\
+		__data = (MAX);						\
+	*(__PTR) = (u64)__data * NSEC_PER_USEC;				\
+	return ret;							\
+}
+USEC_STORE_FUNCTION(bfq_slice_idle_us_store, &bfqd->bfq_slice_idle, 0,
+		    UINT_MAX);
+#undef USEC_STORE_FUNCTION
 
 /* do nothing for the moment */
 static ssize_t bfq_weights_store(struct elevator_queue *e,
@@ -4772,6 +4807,7 @@ static struct elv_fs_entry bfq_attrs[] = {
 	BFQ_ATTR(back_seek_max),
 	BFQ_ATTR(back_seek_penalty),
 	BFQ_ATTR(slice_idle),
+	BFQ_ATTR(slice_idle_us),
 	BFQ_ATTR(max_budget),
 	BFQ_ATTR(timeout_sync),
 	BFQ_ATTR(strict_guarantees),
@@ -4839,12 +4875,6 @@ static int __init bfq_init(void)
 {
 	int ret;
 	char msg[50] = "BFQ I/O-scheduler: v8r3";
-
-	/*
-	 * Can be 0 on HZ < 1000 setups.
-	 */
-	if (bfq_slice_idle == 0)
-		bfq_slice_idle = 1;
 
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
 	ret = blkcg_policy_register(&blkcg_policy_bfq);
