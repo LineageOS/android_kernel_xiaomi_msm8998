@@ -104,7 +104,7 @@ static const int bfq_timeout = HZ / 8;
 struct kmem_cache *bfq_pool;
 
 /* Below this threshold (in ms), we consider thinktime immediate. */
-#define BFQ_MIN_TT		2
+#define BFQ_MIN_TT		(2 * NSEC_PER_MSEC)
 
 /* hw_tag detection: parallel requests threshold and min samples needed. */
 #define BFQ_HW_QUEUE_THRESHOLD	4
@@ -1204,9 +1204,9 @@ static void bfq_bfqq_handle_idle_busy_switch(struct bfq_data *bfqd,
 		 * bfq_bfqq_update_budg_for_activation for
 		 * details on the usage of the next variable.
 		 */
-		arrived_in_time = time_is_after_jiffies(
+		arrived_in_time =  ktime_get_ns() <=
 			RQ_BIC(rq)->ttime.last_end_request +
-			nsecs_to_jiffies(bfqd->bfq_slice_idle * 3));
+			bfqd->bfq_slice_idle * 3;
 
 	bfq_log_bfqq(bfqd, bfqq,
 		     "bfq_add_request non-busy: "
@@ -2189,7 +2189,7 @@ static void bfq_arm_slice_timer(struct bfq_data *bfqd)
 	 * assigned budget before reducing the waiting time to
 	 * BFQ_MIN_TT. This happened to help reduce latency.
 	 */
-	sl = nsecs_to_jiffies(bfqd->bfq_slice_idle);
+	sl = bfqd->bfq_slice_idle;
 	/*
 	 * Unless the queue is being weight-raised or the scenario is
 	 * asymmetric, grant only minimum idle time if the queue
@@ -2202,14 +2202,15 @@ static void bfq_arm_slice_timer(struct bfq_data *bfqd)
 	 */
 	if (BFQQ_SEEKY(bfqq) && bfqq->wr_coeff == 1 &&
 	    bfq_symmetric_scenario(bfqd))
-		sl = min(sl, msecs_to_jiffies(BFQ_MIN_TT));
+		sl = min_t(u64, sl, BFQ_MIN_TT);
 
 	bfqd->last_idling_start = ktime_get();
 	hrtimer_start(&bfqd->idle_slice_timer, ns_to_ktime(sl),
 		      HRTIMER_MODE_REL);
 	bfqg_stats_set_start_idle_time(bfqq_group(bfqq));
-	bfq_log(bfqd, "arm idle: %u/%u ms",
-		jiffies_to_msecs(sl), jiffies_to_msecs(bfqd->bfq_slice_idle));
+	bfq_log(bfqd, "arm idle: %llu/%llu ns",
+		div_u64(sl, NSEC_PER_MSEC),
+		div_u64(bfqd->bfq_slice_idle, NSEC_PER_MSEC));
 }
 
 /*
@@ -2720,7 +2721,7 @@ static unsigned long bfq_bfqq_softrt_next_start(struct bfq_data *bfqd,
 	return max(bfqq->last_idle_bklogged +
 		   HZ * bfqq->service_from_backlogged /
 		   bfqd->bfq_wr_max_softrt_rate,
-		   jiffies + bfqq->bfqd->bfq_slice_idle + 4);
+		   jiffies + nsecs_to_jiffies(bfqq->bfqd->bfq_slice_idle) + 4);
 }
 
 /*
@@ -3559,9 +3560,7 @@ static void bfq_exit_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 
 static void bfq_init_icq(struct io_cq *icq)
 {
-	struct bfq_io_cq *bic = icq_to_bic(icq);
-
-	bic->ttime.last_end_request = bfq_smallest_from_now();
+	icq_to_bic(icq)->ttime.last_end_request = ktime_get_ns() - (1ULL<<32);
 }
 
 static void bfq_exit_icq(struct io_cq *icq)
@@ -3789,13 +3788,15 @@ out:
 static void bfq_update_io_thinktime(struct bfq_data *bfqd,
 				    struct bfq_io_cq *bic)
 {
-	unsigned long elapsed = jiffies - bic->ttime.last_end_request;
-	unsigned long ttime = min(elapsed, 2UL * bfqd->bfq_slice_idle);
+	struct bfq_ttime *ttime = &bic->ttime;
+	u64 elapsed = ktime_get_ns() - bic->ttime.last_end_request;
 
-	bic->ttime.ttime_samples = (7*bic->ttime.ttime_samples + 256) / 8;
-	bic->ttime.ttime_total = (7*bic->ttime.ttime_total + 256*ttime) / 8;
-	bic->ttime.ttime_mean = (bic->ttime.ttime_total + 128) /
-				bic->ttime.ttime_samples;
+	elapsed = min(elapsed, 2UL * bfqd->bfq_slice_idle);
+
+	ttime->ttime_samples = (7*bic->ttime.ttime_samples + 256) / 8;
+	ttime->ttime_total = div_u64(7*ttime->ttime_total + 256*elapsed,  8);
+	ttime->ttime_mean = div64_ul(ttime->ttime_total + 128,
+				     ttime->ttime_samples);
 }
 
 
@@ -4034,7 +4035,7 @@ static void bfq_completed_request(struct request_queue *q, struct request *rq)
 					&bfqd->queue_weights_tree);
 	}
 
-	RQ_BIC(rq)->ttime.last_end_request = jiffies;
+	RQ_BIC(rq)->ttime.last_end_request = ktime_get_ns();
 
 	/*
 	 * If we are waiting to discover whether the request pattern
