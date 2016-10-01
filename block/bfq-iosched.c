@@ -3230,7 +3230,8 @@ static struct bfq_queue *bfq_select_queue(struct bfq_data *bfqd)
 			 * not disable disk idling even when a new request
 			 * arrives.
 			 */
-			if (hrtimer_active(&bfqd->idle_slice_timer)) {
+			if (bfq_bfqq_wait_request(bfqq)) {
+				BUG_ON(!hrtimer_active(&bfqd->idle_slice_timer));
 				/*
 				 * If we get here: 1) at least a new request
 				 * has arrived but we have not disabled the
@@ -3467,8 +3468,7 @@ static int bfq_dispatch_requests(struct request_queue *q, int force)
 
 	BUG_ON(bfqq->entity.budget < bfqq->entity.service);
 
-	bfq_clear_bfqq_wait_request(bfqq);
-	BUG_ON(hrtimer_active(&bfqd->idle_slice_timer));
+	BUG_ON(bfq_bfqq_wait_request(bfqq));
 
 	if (!bfq_dispatch_request(bfqd, bfqq))
 		return 0;
@@ -4306,6 +4306,8 @@ static enum hrtimer_restart bfq_idle_slice_timer(struct hrtimer *timer)
 	 */
 	if (bfqq) {
 		bfq_log_bfqq(bfqd, bfqq, "slice_timer expired");
+		bfq_clear_bfqq_wait_request(bfqq);
+
 		if (bfq_bfqq_budget_timeout(bfqq))
 			/*
 			 * Also here the queue can be safely expired
