@@ -327,10 +327,26 @@ static void bfq_update_min(struct bfq_entity *entity, struct rb_node *node)
 static void bfq_update_active_node(struct rb_node *node)
 {
 	struct bfq_entity *entity = rb_entry(node, struct bfq_entity, rb_node);
+	struct bfq_queue *bfqq = bfq_entity_to_bfqq(entity);
 
 	entity->min_start = entity->start;
 	bfq_update_min(entity, node->rb_right);
 	bfq_update_min(entity, node->rb_left);
+
+	if (bfqq) {
+		bfq_log_bfqq(bfqq->bfqd, bfqq,
+			     "update_active_node: new min_start %llu",
+			     ((entity->min_start>>10)*1000)>>12);
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
+	} else {
+		struct bfq_group *bfqg =
+			container_of(entity, struct bfq_group, entity);
+
+		bfq_log_bfqg((struct bfq_data *)bfqg->bfqd, bfqg,
+			     "update_active_node: new min_start %llu",
+			     ((entity->min_start>>10)*1000)>>12);
+#endif
+	}
 }
 
 /**
@@ -1127,7 +1143,23 @@ static void bfq_update_vtime(struct bfq_service_tree *st)
 
 	entry = rb_entry(node, struct bfq_entity, rb_node);
 	if (bfq_gt(entry->min_start, st->vtime)) {
+		struct bfq_queue *bfqq = bfq_entity_to_bfqq(entry);
 		st->vtime = entry->min_start;
+
+		if (bfqq)
+			bfq_log_bfqq(bfqq->bfqd, bfqq,
+				     "update_vtime: new vtime %llu %p",
+				     ((st->vtime>>10)*1000)>>12, st);
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
+		else {
+			struct bfq_group *bfqg =
+				container_of(entry, struct bfq_group, entity);
+
+			bfq_log_bfqg((struct bfq_data *)bfqg->bfqd, bfqg,
+				     "update_vtime: new vtime %llu %p",
+				     ((st->vtime>>10)*1000)>>12, st);
+		}
+#endif
 		bfq_forget_idle(st);
 	}
 }

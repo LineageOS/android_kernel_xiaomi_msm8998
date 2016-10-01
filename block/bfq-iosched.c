@@ -2208,7 +2208,7 @@ static void bfq_arm_slice_timer(struct bfq_data *bfqd)
 	hrtimer_start(&bfqd->idle_slice_timer, ns_to_ktime(sl),
 		      HRTIMER_MODE_REL);
 	bfqg_stats_set_start_idle_time(bfqq_group(bfqq));
-	bfq_log(bfqd, "arm idle: %llu/%llu ns",
+	bfq_log(bfqd, "arm idle: %llu/%llu ms",
 		div_u64(sl, NSEC_PER_MSEC),
 		div_u64(bfqd->bfq_slice_idle, NSEC_PER_MSEC));
 }
@@ -2544,7 +2544,7 @@ static bool bfq_update_peak_rate(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 	}
 
 	delta_ms_tmp = delta_usecs;
-	do_div(delta_ms_tmp, 1000);
+	do_div(delta_ms_tmp, NSEC_PER_MSEC);
 	*delta_ms = delta_ms_tmp;
 
 	/*
@@ -2627,8 +2627,8 @@ static bool bfq_update_peak_rate(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 						T_fast[dev_type];
 			}
 			bfq_log(bfqd,
-		"dev_speed_class = %d (%d sects/sec), thresh %d setcs/sec",
-				bfqd->device_speed,
+	"dev_type %d dev_speed_class = %d (%d sects/sec), thresh %d setcs/sec",
+				dev_type, bfqd->device_speed,
 				bfqd->device_speed == BFQ_BFQD_FAST ?
 				(1000000*R_fast[dev_type])>>BFQ_RATE_SHIFT :
 				(1000000*R_slow[dev_type])>>BFQ_RATE_SHIFT,
