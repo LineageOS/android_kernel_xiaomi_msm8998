@@ -1380,8 +1380,9 @@ static void __bfq_bfqd_reset_in_service(struct bfq_data *bfqd)
 		bfqd->in_service_bic = NULL;
 	}
 
-	bfqd->in_service_queue = NULL;
+	bfq_clear_bfqq_wait_request(bfqd->in_service_queue);
 	hrtimer_try_to_cancel(&bfqd->idle_slice_timer);
+	bfqd->in_service_queue = NULL;
 }
 
 static void bfq_deactivate_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
