@@ -3693,6 +3693,21 @@ static int bfq_dispatch_requests(struct request_queue *q, int force)
 	if (unlikely(force))
 		return bfq_forced_dispatch(bfqd);
 
+	/*
+	 * Force device to serve one request at a time if
+	 * strict_guarantees is true. Forcing this service scheme is
+	 * currently the ONLY way to guarantee that the request
+	 * service order enforced by the scheduler is respected by a
+	 * queueing device. Otherwise the device is free even to make
+	 * some unlucky request wait for as long as the device
+	 * wishes.
+	 *
+	 * Of course, serving one request at at time may cause loss of
+	 * throughput.
+	 */
+	if (bfqd->strict_guarantees && bfqd->rq_in_driver > 0)
+		return 0;
+
 	bfqq = bfq_select_queue(bfqd);
 	if (!bfqq)
 		return 0;
