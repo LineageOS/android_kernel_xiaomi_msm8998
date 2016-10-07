@@ -473,7 +473,7 @@ struct bfq_data {
 	/* maximum allowed backward seek */
 	unsigned int bfq_back_max;
 	/* maximum idling time */
-	u64 bfq_slice_idle;
+	u32 bfq_slice_idle;
 	/* last time CLASS_IDLE was served */
 	u64 bfq_class_idle_last_service;
 
