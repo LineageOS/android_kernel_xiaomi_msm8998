@@ -602,6 +602,10 @@ static struct bfq_group *__bfq_bic_change_cgroup(struct bfq_data *bfqd,
 	lockdep_assert_held(bfqd->queue->queue_lock);
 
 	bfqg = bfq_find_set_group(bfqd, blkcg);
+
+	if (unlikely(!bfqg))
+		bfqg = bfqd->root_group;
+
 	if (async_bfqq) {
 		entity = &async_bfqq->entity;
 
