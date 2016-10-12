@@ -642,6 +642,20 @@ bfq_bfqq_resume_state(struct bfq_queue *bfqq, struct bfq_io_cq *bic)
 		bfq_mark_bfqq_IO_bound(bfqq);
 	else
 		bfq_clear_bfqq_IO_bound(bfqq);
+
+	bfqq->wr_coeff = bic->saved_wr_coeff;
+	bfqq->last_wr_start_finish = bic->saved_last_wr_start_finish;
+
+	if (bfqq->wr_coeff > 1 && (bfq_bfqq_in_large_burst(bfqq) ||
+	    time_is_before_jiffies(bfqq->last_wr_start_finish +
+				   bfqq->wr_cur_max_time))) {
+		bfq_log_bfqq(bfqq->bfqd, bfqq,
+		    "resume state: switching off wr");
+
+		bfqq->wr_coeff = 1;
+	}
+	/* make sure weight will be updated, however we got here */
+	bfqq->entity.prio_changed = 1;
 }
 
 static int bfqq_process_refs(struct bfq_queue *bfqq)
@@ -1952,18 +1966,22 @@ check_scheduled:
 
 static void bfq_bfqq_save_state(struct bfq_queue *bfqq)
 {
+	struct bfq_io_cq *bic = bfqq->bic;
+
 	/*
 	 * If !bfqq->bic, the queue is already shared or its requests
 	 * have already been redirected to a shared queue; both idle window
 	 * and weight raising state have already been saved. Do nothing.
 	 */
-	if (!bfqq->bic)
+	if (!bic)
 		return;
 
-	bfqq->bic->saved_idle_window = bfq_bfqq_idle_window(bfqq);
-	bfqq->bic->saved_IO_bound = bfq_bfqq_IO_bound(bfqq);
-	bfqq->bic->saved_in_large_burst = bfq_bfqq_in_large_burst(bfqq);
-	bfqq->bic->was_in_burst_list = !hlist_unhashed(&bfqq->burst_list_node);
+	bic->saved_idle_window = bfq_bfqq_idle_window(bfqq);
+	bic->saved_IO_bound = bfq_bfqq_IO_bound(bfqq);
+	bic->saved_in_large_burst = bfq_bfqq_in_large_burst(bfqq);
+	bic->was_in_burst_list = !hlist_unhashed(&bfqq->burst_list_node);
+	bic->saved_wr_coeff = bfqq->wr_coeff;
+	bic->saved_last_wr_start_finish = bfqq->last_wr_start_finish;
 }
 
 static void bfq_get_bic_reference(struct bfq_queue *bfqq)
@@ -3940,7 +3958,7 @@ static void bfq_init_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 	bfqq->pid = pid;
 
 	bfqq->wr_coeff = 1;
-	bfqq->last_wr_start_finish = bfq_smallest_from_now();
+	bfqq->last_wr_start_finish = jiffies;
 	bfqq->budget_timeout = bfq_smallest_from_now();
 	bfqq->split_time = bfq_smallest_from_now();
 	/*
