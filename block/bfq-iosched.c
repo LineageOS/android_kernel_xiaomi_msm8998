@@ -1982,6 +1982,7 @@ static void bfq_bfqq_save_state(struct bfq_queue *bfqq)
 	bic->was_in_burst_list = !hlist_unhashed(&bfqq->burst_list_node);
 	bic->saved_wr_coeff = bfqq->wr_coeff;
 	bic->saved_last_wr_start_finish = bfqq->last_wr_start_finish;
+	BUG_ON(time_is_after_jiffies(bfqq->last_wr_start_finish));
 }
 
 static void bfq_get_bic_reference(struct bfq_queue *bfqq)
@@ -2146,9 +2147,10 @@ static void __bfq_set_in_service_queue(struct bfq_data *bfqd,
 		BUG_ON(bfqq == bfqd->in_service_queue);
 		BUG_ON(RB_EMPTY_ROOT(&bfqq->sort_list));
 
-		if (bfqq->wr_coeff > 1 &&
+		if (time_is_before_jiffies(bfqq->last_wr_start_finish) &&
+		    bfqq->wr_coeff > 1 &&
 		    bfqq->wr_cur_max_time == bfqd->bfq_wr_rt_max_time &&
-			time_is_before_jiffies(bfqq->budget_timeout)) {
+		    time_is_before_jiffies(bfqq->budget_timeout)) {
 			/*
 			 * For soft real-time queues, move the start
 			 * of the weight-raising period forward by the
@@ -2174,7 +2176,19 @@ static void __bfq_set_in_service_queue(struct bfq_data *bfqd,
 			 * request.
 			 */
 			bfqq->last_wr_start_finish += jiffies -
-				bfqq->budget_timeout;
+				max_t(unsigned long, bfqq->last_wr_start_finish,
+				      bfqq->budget_timeout);
+			if (time_is_after_jiffies(bfqq->last_wr_start_finish)) {
+			       pr_crit(
+			       "BFQ WARNING:last %lu budget %lu jiffies %lu",
+			       bfqq->last_wr_start_finish,
+			       bfqq->budget_timeout,
+			       jiffies);
+			       pr_crit("diff %lu", jiffies -
+				       max_t(unsigned long,
+					     bfqq->last_wr_start_finish,
+					     bfqq->budget_timeout));
+		       }
 		}
 
 		bfq_set_budget_timeout(bfqd, bfqq);
@@ -3527,6 +3541,9 @@ static void bfq_update_wr_data(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 {
 	struct bfq_entity *entity = &bfqq->entity;
 	if (bfqq->wr_coeff > 1) { /* queue is being weight-raised */
+		BUG_ON(bfqq->wr_cur_max_time == bfqd->bfq_wr_rt_max_time &&
+		       time_is_after_jiffies(bfqq->last_wr_start_finish));
+
 		bfq_log_bfqq(bfqd, bfqq,
 			"raising period dur %u/%u msec, old coeff %u, w %d(%d)",
 			jiffies_to_msecs(jiffies - bfqq->last_wr_start_finish),
