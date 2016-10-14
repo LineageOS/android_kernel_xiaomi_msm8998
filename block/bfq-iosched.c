@@ -116,10 +116,10 @@ struct kmem_cache *bfq_pool;
 
 /* Min number of samples required to perform peak-rate update */
 #define BFQ_RATE_MIN_SAMPLES	32
-/* Min observation time interval required to perform a peak-rate update (us) */
-#define BFQ_RATE_MIN_INTERVAL	300*USEC_PER_MSEC
-/* Target observation time interval for a peak-rate update (us) */
-#define BFQ_RATE_REF_INTERVAL	USEC_PER_SEC
+/* Min observation time interval required to perform a peak-rate update (ns) */
+#define BFQ_RATE_MIN_INTERVAL	300*NSEC_PER_MSEC
+/* Target observation time interval for a peak-rate update (ns) */
+#define BFQ_RATE_REF_INTERVAL	NSEC_PER_SEC
 
 /* Shift used for peak rate fixed precision calculations. */
 #define BFQ_RATE_SHIFT		16
@@ -2326,14 +2326,14 @@ void bfq_reset_rate_computation(struct bfq_data *bfqd, struct request *rq)
 		bfqd->peak_rate_samples = 0; /* full re-init on next disp. */
 
 	bfq_log(bfqd,
-		"reset_rate_computation at end, sample %u/%u size %llu",
+		"reset_rate_computation at end, sample %u/%u tot_sects %llu",
 		bfqd->peak_rate_samples, bfqd->sequential_samples,
 		bfqd->tot_sectors_dispatched);
 }
 
 void bfq_update_rate_reset(struct bfq_data *bfqd, struct request *rq)
 {
-	u32 bw, weight, divisor;
+	u32 rate, weight, divisor;
 
 	/*
 	 * For the convergence property to hold (see comments on
@@ -2344,10 +2344,10 @@ void bfq_update_rate_reset(struct bfq_data *bfqd, struct request *rq)
 	 * for a new evaluation attempt.
 	 */
 	if (bfqd->peak_rate_samples < BFQ_RATE_MIN_SAMPLES ||
-		bfqd->delta_from_first_us < BFQ_RATE_MIN_INTERVAL) {
+	    bfqd->delta_from_first < BFQ_RATE_MIN_INTERVAL) {
 		bfq_log(bfqd,
-	"update_rate_reset: only resetting, delta_first %uus samples %d",
-			bfqd->delta_from_first_us, bfqd->peak_rate_samples);
+	"update_rate_reset: only resetting, delta_first %lluus samples %d",
+			bfqd->delta_from_first>>10, bfqd->peak_rate_samples);
 		goto reset_computation;
 	}
 
@@ -2357,41 +2357,44 @@ void bfq_update_rate_reset(struct bfq_data *bfqd, struct request *rq)
 	 * have been served by the device, it is more precise to
 	 * extend the observation interval to the last completion.
 	 */
-	bfqd->delta_from_first_us =
-		max_t(u64, bfqd->delta_from_first_us,
-			(bfqd->last_completion - bfqd->first_dispatch)/
-			NSEC_PER_USEC);
+	bfqd->delta_from_first =
+		max_t(u64, bfqd->delta_from_first,
+		      bfqd->last_completion - bfqd->first_dispatch);
 
-	BUG_ON(bfqd->delta_from_first_us == 0);
-	bw = div_u64(bfqd->tot_sectors_dispatched<<BFQ_RATE_SHIFT,
-		     bfqd->delta_from_first_us);
+	BUG_ON(bfqd->delta_from_first == 0);
+	/*
+	 * Rate computed in sects/usec, and not sects/nsec, for
+	 * precision issues.
+	 */
+	rate = div64_ul(bfqd->tot_sectors_dispatched<<BFQ_RATE_SHIFT,
+			div_u64(bfqd->delta_from_first, NSEC_PER_USEC));
 
 	bfq_log(bfqd,
-	"update_rate_reset: size %llu delta_first %uus bw %llu sects/s (%d)",
-		bfqd->tot_sectors_dispatched, bfqd->delta_from_first_us,
-		((USEC_PER_SEC*(u64)bw)>>BFQ_RATE_SHIFT),
-		bw > 20<<BFQ_RATE_SHIFT);
+"update_rate_reset: tot_sects %llu delta_first %lluus rate %llu sects/s (%d)",
+		bfqd->tot_sectors_dispatched, bfqd->delta_from_first>>10,
+		((USEC_PER_SEC*(u64)rate)>>BFQ_RATE_SHIFT),
+		rate > 20<<BFQ_RATE_SHIFT);
 
 	/*
 	 * Peak rate not updated if:
 	 * - the percentage of sequential dispatches is below 3/4 of the
-	 *   total, and bw is below the current estimated peak rate
-	 * - bw is unreasonably high (> 20M sectors/sec)
+	 *   total, and rate is below the current estimated peak rate
+	 * - rate is unreasonably high (> 20M sectors/sec)
 	 */
 	if ((bfqd->peak_rate_samples > (3 * bfqd->sequential_samples)>>2 &&
-	     bw <= bfqd->peak_rate) ||
-		bw > 20<<BFQ_RATE_SHIFT) {
+	     rate <= bfqd->peak_rate) ||
+		rate > 20<<BFQ_RATE_SHIFT) {
 		bfq_log(bfqd,
-"update_rate_reset: goto reset, samples %u/%u bw/peak %llu/%llu",
+		"update_rate_reset: goto reset, samples %u/%u rate/peak %llu/%llu",
 		bfqd->peak_rate_samples, bfqd->sequential_samples,
-		((USEC_PER_SEC*(u64)bw)>>BFQ_RATE_SHIFT),
+		((USEC_PER_SEC*(u64)rate)>>BFQ_RATE_SHIFT),
 		((USEC_PER_SEC*(u64)bfqd->peak_rate)>>BFQ_RATE_SHIFT));
 		goto reset_computation;
 	} else {
 		bfq_log(bfqd,
-"update_rate_reset: do update, samples %u/%u bw/peak %llu/%llu",
+		"update_rate_reset: do update, samples %u/%u rate/peak %llu/%llu",
 		bfqd->peak_rate_samples, bfqd->sequential_samples,
-		((USEC_PER_SEC*(u64)bw)>>BFQ_RATE_SHIFT),
+		((USEC_PER_SEC*(u64)rate)>>BFQ_RATE_SHIFT),
 		((USEC_PER_SEC*(u64)bfqd->peak_rate)>>BFQ_RATE_SHIFT));
 	}
 
@@ -2425,8 +2428,8 @@ void bfq_update_rate_reset(struct bfq_data *bfqd, struct request *rq)
 	 * duration of the observation interval.
 	 */
 	weight = min_t(u32, 8,
-		       (weight * bfqd->delta_from_first_us) /
-		       BFQ_RATE_REF_INTERVAL);
+		       div_u64(weight * bfqd->delta_from_first,
+			       BFQ_RATE_REF_INTERVAL));
 
 	/*
 	 * Divisor ranging from 10, for minimum weight, to 2, for
@@ -2438,22 +2441,22 @@ void bfq_update_rate_reset(struct bfq_data *bfqd, struct request *rq)
 	/*
 	 * Finally, update peak rate:
 	 *
-	 * peak_rate = peak_rate * (divisor-1) / divisor  +  bw / divisor
+	 * peak_rate = peak_rate * (divisor-1) / divisor  +  rate / divisor
 	 */
 	bfqd->peak_rate *= divisor-1;
 	bfqd->peak_rate /= divisor;
-	bw /= divisor; /* smoothing constant alpha = 1/divisor */
+	rate /= divisor; /* smoothing constant alpha = 1/divisor */
 
 	bfq_log(bfqd,
-		"update_rate_reset: divisor %d tmp_peak_rate %llu tmp_bw %u",
+		"update_rate_reset: divisor %d tmp_peak_rate %llu tmp_rate %u",
 		divisor,
 		((USEC_PER_SEC*(u64)bfqd->peak_rate)>>BFQ_RATE_SHIFT),
-		(u32)((USEC_PER_SEC*(u64)bw)>>BFQ_RATE_SHIFT));
+		(u32)((USEC_PER_SEC*(u64)rate)>>BFQ_RATE_SHIFT));
 
 	BUG_ON(bfqd->peak_rate == 0);
 	BUG_ON(bfqd->peak_rate > 20<<BFQ_RATE_SHIFT);
 
-	bfqd->peak_rate += bw;
+	bfqd->peak_rate += rate;
 	update_thr_responsiveness_params(bfqd);
 	BUG_ON(bfqd->peak_rate > 20<<BFQ_RATE_SHIFT);
 
@@ -2521,7 +2524,7 @@ void bfq_update_peak_rate(struct bfq_data *bfqd, struct request *rq)
 	    bfqd->rq_in_driver == 0) {
 		bfq_log(bfqd,
 "update_peak_rate: jumping to updating&resetting delta_last %lluus samples %d",
-			(now_ns - bfqd->last_dispatch)/NSEC_PER_USEC,
+			(now_ns - bfqd->last_dispatch)>>10,
 			bfqd->peak_rate_samples) ;
 		goto update_rate_and_reset;
 	}
@@ -2543,16 +2546,16 @@ void bfq_update_peak_rate(struct bfq_data *bfqd, struct request *rq)
 	else
 		bfqd->last_rq_max_size = blk_rq_sectors(rq);
 
-	bfqd->delta_from_first_us = (now_ns - bfqd->first_dispatch)/NSEC_PER_USEC;
+	bfqd->delta_from_first = now_ns - bfqd->first_dispatch;
 
 	bfq_log(bfqd,
-	"update_peak_rate: added samples %u/%u size %llu delta_first_us %u",
+	"update_peak_rate: added samples %u/%u tot_sects %llu delta_first %lluus",
 		bfqd->peak_rate_samples, bfqd->sequential_samples,
 		bfqd->tot_sectors_dispatched,
-		bfqd->delta_from_first_us);
+		bfqd->delta_from_first>>10);
 
 	/* Target observation interval not yet reached, go on sampling */
-	if (bfqd->delta_from_first_us < BFQ_RATE_REF_INTERVAL)
+	if (bfqd->delta_from_first < BFQ_RATE_REF_INTERVAL)
 		goto update_last_values;
 
 update_rate_and_reset:
@@ -2563,7 +2566,7 @@ update_last_values:
 
 	bfq_log(bfqd,
 	"update_peak_rate: delta_first %lluus last_pos %llu peak_rate %llu",
-		(now_ns - bfqd->first_dispatch)/NSEC_PER_USEC,
+		(now_ns - bfqd->first_dispatch)>>10,
 		(unsigned long long) bfqd->last_position,
 		((USEC_PER_SEC*(u64)bfqd->peak_rate)>>BFQ_RATE_SHIFT));
 	bfq_log(bfqd,
@@ -2864,7 +2867,7 @@ static bool bfq_bfqq_is_slow(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 				 unsigned long *delta_ms)
 {
 	ktime_t delta_ktime;
-	u64 delta_usecs;
+	u32 delta_usecs;
 	bool slow = BFQQ_SEEKY(bfqq); /* if delta too short, use seekyness */
 
 	if (!bfq_bfqq_sync(bfqq))
@@ -2888,7 +2891,7 @@ static bool bfq_bfqq_is_slow(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 		else /* charge at least one seek */
 			*delta_ms = bfq_slice_idle / NSEC_PER_MSEC;
 
-		bfq_log(bfqd, "bfq_bfqq_is_slow: unrealistic %llu", delta_usecs);
+		bfq_log(bfqd, "bfq_bfqq_is_slow: unrealistic %u", delta_usecs);
 
 		return slow;
 	}
@@ -2907,11 +2910,11 @@ static bool bfq_bfqq_is_slow(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 		 * rate is likely to be an average over the disk
 		 * surface. Accordingly, to not be too harsh with
 		 * unlucky processes, a process is deemed slow only if
-		 * its bw has been lower than half of the estimated
+		 * its rate has been lower than half of the estimated
 		 * peak rate.
 		 */
 		slow = bfqq->entity.service < bfqd->bfq_max_budget / 2;
-		bfq_log(bfqd, "bfq_bfqq_is_slow: relative bw %d/%d",
+		bfq_log(bfqd, "bfq_bfqq_is_slow: relative rate %d/%d",
 			bfqq->entity.service, bfqd->bfq_max_budget);
 	}
 
@@ -4326,9 +4329,13 @@ static void bfq_completed_request(struct request_queue *q, struct request *rq)
 
 	RQ_BIC(rq)->ttime.last_end_request = now_ns;
 
-	delta_us = (now_ns - bfqd->last_completion)/NSEC_PER_USEC;
+	/*
+	 * Using us instead of ns, to get a reasonable precision in
+	 * computing rate in next check.
+	 */
+	delta_us = div_u64(now_ns - bfqd->last_completion, NSEC_PER_USEC);
 
-	bfq_log(bfqd, "rq_completed: delta %uus/%luus max_size %u bw %llu/%llu",
+	bfq_log(bfqd, "rq_completed: delta %uus/%luus max_size %u rate %llu/%llu",
 		delta_us, BFQ_MIN_TT/NSEC_PER_USEC, bfqd->last_rq_max_size,
 		(USEC_PER_SEC*
 		(u64)((bfqd->last_rq_max_size<<BFQ_RATE_SHIFT)/delta_us))
