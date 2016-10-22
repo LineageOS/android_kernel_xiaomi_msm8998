@@ -2175,9 +2175,13 @@ static void __bfq_set_in_service_queue(struct bfq_data *bfqd,
 			 * not only expires, but also remains with no
 			 * request.
 			 */
-			bfqq->last_wr_start_finish += jiffies -
-				max_t(unsigned long, bfqq->last_wr_start_finish,
-				      bfqq->budget_timeout);
+			if (time_after(bfqq->budget_timeout,
+				       bfqq->last_wr_start_finish))
+				bfqq->last_wr_start_finish +=
+					jiffies - bfqq->budget_timeout;
+			else
+				bfqq->last_wr_start_finish = jiffies;
+
 			if (time_is_after_jiffies(bfqq->last_wr_start_finish)) {
 			       pr_crit(
 			       "BFQ WARNING:last %lu budget %lu jiffies %lu",
