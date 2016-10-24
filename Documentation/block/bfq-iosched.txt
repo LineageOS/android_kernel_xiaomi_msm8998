@@ -78,13 +78,15 @@ sequential workloads considered in our tests. With random workloads,
 and with all the workloads on flash-based devices, BFQ achieves,
 instead, about the same throughput as the other schedulers.
 
-Strong fairness/bandwidth guarantees
+Strong fairness, bandwidth and delay guarantees
 
 BFQ distributes the device throughput, and not just the device time,
-as desired among I/O-bound applications, with any workload and
-regardless of the device parameters. BFQ switches to time-based
-distribution (only) for processes that would otherwise cause a
-throughput loss.
+among I/O-bound applications in proportion their weights, with any
+workload and regardless of the device parameters. From these bandwidth
+guarantees, it is possible to compute tight per-I/O-request delay
+guarantees by a simple formula. If not configured for strict service
+guarantees, BFQ switches to time-based resource sharing (only) for
+applications that would otherwise cause a throughput loss.
 
 1-2 Server systems
 ------------------
