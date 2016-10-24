@@ -1,5 +1,5 @@
 /*
- * Budget Fair Queueing (BFQ) disk scheduler.
+ * Budget Fair Queueing (BFQ) I/O scheduler.
  *
  * Based on ideas and code from CFQ:
  * Copyright (C) 2003 Jens Axboe <axboe@kernel.dk>
