@@ -227,6 +227,12 @@ plus a lot of code, are borrowed from CFQ.
 	budget assigned to a queue waiting for service is, the sooner
 	B-WF2Q+ will serve that queue (Subsec 3.3 in [2]).
 
+- If several processes are competing for the device at the same time,
+  but all processes and groups have the same weight, then BFQ
+  guarantees the expected throughput distribution without ever idling
+  the device. It uses preemption instead. Throughput is then much
+  higher in this common scenario.
+
 - ioprio classes are served in strict priority order, i.e.,
   lower-priority queues are not served as long as there are
   higher-priority queues.  Among queues in the same class, the
