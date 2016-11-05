@@ -385,7 +385,7 @@ max_budget
 Maximum amount of service, measured in sectors, that can be provided
 to a BFQ queue once it is set in service (of course within the limits
 of the above timeout). According to what said in the description of
-the algoritm, larger values increase the throughput in proportion to
+the algorithm, larger values increase the throughput in proportion to
 the percentage of sequential I/O requests issued. The price of larger
 values is that they coarsen the granularity of short-term bandwidth
 and latency guarantees.
