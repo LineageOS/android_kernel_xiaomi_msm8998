@@ -77,19 +77,19 @@
 static const u64 bfq_fifo_expire[2] = { NSEC_PER_SEC / 4, NSEC_PER_SEC / 8 };
 
 /* Maximum backwards seek, in KiB. */
-static const int bfq_back_max = 16 * 1024;
+static const int bfq_back_max = (16 * 1024);
 
 /* Penalty of a backwards seek, in number of sectors. */
 static const int bfq_back_penalty = 2;
 
 /* Idling period duration, in ns. */
-static u32 bfq_slice_idle = NSEC_PER_SEC / 125;
+static u32 bfq_slice_idle = (NSEC_PER_SEC / 125);
 
 /* Minimum number of assigned budgets for which stats are safe to compute. */
 static const int bfq_stats_min_budgets = 194;
 
 /* Default maximum budget values, in sectors and number of requests. */
-static const int bfq_default_max_budget = 16 * 1024;
+static const int bfq_default_max_budget = (16 * 1024);
 
 /*
  * Async to sync throughput distribution is controlled as follows:
@@ -99,7 +99,7 @@ static const int bfq_default_max_budget = 16 * 1024;
 static const int bfq_async_charge_factor = 10;
 
 /* Default timeout values, in jiffies, approximating CFQ defaults. */
-static const int bfq_timeout = HZ / 8;
+static const int bfq_timeout = (HZ / 8);
 
 struct kmem_cache *bfq_pool;
 
@@ -117,7 +117,7 @@ struct kmem_cache *bfq_pool;
 /* Min number of samples required to perform peak-rate update */
 #define BFQ_RATE_MIN_SAMPLES	32
 /* Min observation time interval required to perform a peak-rate update (ns) */
-#define BFQ_RATE_MIN_INTERVAL	300*NSEC_PER_MSEC
+#define BFQ_RATE_MIN_INTERVAL	(300*NSEC_PER_MSEC)
 /* Target observation time interval for a peak-rate update (ns) */
 #define BFQ_RATE_REF_INTERVAL	NSEC_PER_SEC
 
