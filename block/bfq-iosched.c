@@ -14,6 +14,12 @@
  * Licensed under the GPL-2 as detailed in the accompanying COPYING.BFQ
  * file.
  *
+ * BFQ is a proportional-share I/O scheduler, with some extra
+ * low-latency capabilities. BFQ also supports full hierarchical
+ * scheduling through cgroups. Next paragraphs provide an introduction
+ * on BFQ inner workings. Details on BFQ benefits and usage can be
+ * found in Documentation/block/bfq-iosched.txt.
+ *
  * BFQ is a proportional-share storage-I/O scheduling algorithm based
  * on the slice-by-slice service scheme of CFQ. But BFQ assigns
  * budgets, measured in number of sectors, to processes instead of
@@ -43,10 +49,10 @@
  * H-WF2Q+, while the augmented tree used to implement B-WF2Q+ with O(log N)
  * complexity derives from the one introduced with EEVDF in [3].
  *
- * [1] P. Valente and M. Andreolini, ``Improving Application Responsiveness
- *     with the BFQ Disk I/O Scheduler'',
- *     Proceedings of the 5th Annual International Systems and Storage
- *     Conference (SYSTOR '12), June 2012.
+ * [1] P. Valente, A. Avanzini, "Evolution of the BFQ Storage I/O
+ *   Scheduler", Proceedings of the First Workshop on Mobile System
+ *   Technologies (MST-2015), May 2015.
+ *   http://algogroup.unimore.it/people/paolo/disk_sched/mst-2015.pdf
  *
  * http://algogroup.unimo.it/people/paolo/disk_sched/bf1-v1-suite-results.pdf
  *
