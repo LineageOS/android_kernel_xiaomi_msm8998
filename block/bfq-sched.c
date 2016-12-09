@@ -1265,7 +1265,7 @@ __bfq_lookup_next_entity(struct bfq_service_tree *st, bool force)
  * NOTE: since we cache the next_in_service entity at each level of the
  * hierarchy, the complexity of the lookup can be decreased with
  * absolutely no effort just returning the cached next_in_service value;
- * we prefer to do full lookups to test the consistency of * the data
+ * we prefer to do full lookups to test the consistency of the data
  * structures.
  */
 static struct bfq_entity *bfq_lookup_next_entity(struct bfq_sched_data *sd,
