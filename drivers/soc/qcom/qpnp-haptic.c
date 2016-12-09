@@ -2316,10 +2316,23 @@ static void qpnp_hap_td_enable(struct timed_output_dev *dev, int time_ms)
 {
 	struct qpnp_hap *hap = container_of(dev, struct qpnp_hap,
 					 timed_dev);
+	int prev_time_ms;
 
 	spin_lock(&hap->td_lock);
+	prev_time_ms = hap->td_time_ms;
 	hap->td_time_ms = time_ms;
 	spin_unlock(&hap->td_lock);
+
+	/*
+	 * Fingerprint success haptic duration in the Android framework is
+	 * 30ms. After writing the 30ms value, the Android framework decides to
+	 * kill the haptic response prematurely by writing 0ms. This weird
+	 * behavior results in an inconsistent, <30ms haptic response on
+	 * fingerprint authentication, so ignore the request to manually
+	 * disable the 30ms haptics.
+	 */
+	if (!time_ms && prev_time_ms == 30)
+		return;
 
 	schedule_work(&hap->td_work);
 }
