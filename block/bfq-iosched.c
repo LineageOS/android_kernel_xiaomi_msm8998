@@ -599,11 +599,6 @@ static unsigned int bfq_wr_duration(struct bfq_data *bfqd)
 	return dur;
 }
 
-static unsigned bfq_bfqq_cooperations(struct bfq_queue *bfqq)
-{
-	return bfqq->bic ? bfqq->bic->cooperations : 0;
-}
-
 static void
 bfq_bfqq_resume_state(struct bfq_queue *bfqq, struct bfq_io_cq *bic)
 {
