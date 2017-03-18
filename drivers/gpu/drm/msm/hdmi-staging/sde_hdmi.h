@@ -19,10 +19,15 @@
 #include <linux/bitops.h>
 #include <linux/debugfs.h>
 #include <linux/of_device.h>
+#include <linux/msm_ext_display.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include "hdmi.h"
+
+#define MAX_NUMBER_ADB 5
+#define MAX_AUDIO_DATA_BLOCK_SIZE 30
+#define MAX_SPKR_ALLOC_DATA_BLOCK_SIZE 3
 
 /**
  * struct sde_hdmi_info - defines hdmi display properties
@@ -59,6 +64,14 @@ struct sde_hdmi_ctrl {
 	u32 hdmi_ctrl_idx;
 };
 
+struct hdmi_edid_ctrl {
+	struct edid *edid;
+	u8 audio_data_block[MAX_NUMBER_ADB * MAX_AUDIO_DATA_BLOCK_SIZE];
+	int adb_size;
+	u8 spkr_alloc_data_block[MAX_SPKR_ALLOC_DATA_BLOCK_SIZE];
+	int sadb_size;
+};
+
 /**
  * struct sde_hdmi - hdmi display information
  * @pdev:             Pointer to platform device.
@@ -86,6 +99,10 @@ struct sde_hdmi {
 	struct mutex display_lock;
 
 	struct sde_hdmi_ctrl ctrl;
+
+	struct platform_device *ext_pdev;
+	struct msm_ext_disp_init_data ext_audio_data;
+	struct hdmi_edid_ctrl edid;
 
 	bool non_pluggable;
 	u32 num_of_modes;
@@ -223,6 +240,104 @@ int sde_hdmi_drm_deinit(struct sde_hdmi *display);
  */
 int sde_hdmi_get_info(struct msm_display_info *info,
 				void *display);
+
+/**
+ * sde_hdmi_bridge_init() - init sde hdmi bridge
+ * @hdmi:          Handle to the hdmi.
+ *
+ * Return: struct drm_bridge *.
+ */
+struct drm_bridge *sde_hdmi_bridge_init(struct hdmi *hdmi);
+
+/**
+ * sde_hdmi_set_mode() - Set HDMI mode API.
+ * @hdmi:          Handle to the hdmi.
+ * @power_on:      Power on/off request.
+ *
+ * Return: void.
+ */
+void sde_hdmi_set_mode(struct hdmi *hdmi, bool power_on);
+
+/**
+ * sde_hdmi_audio_on() - enable hdmi audio.
+ * @hdmi:          Handle to the hdmi.
+ * @params:        audio setup parameters from codec.
+ *
+ * Return: error code.
+ */
+int sde_hdmi_audio_on(struct hdmi *hdmi,
+	struct msm_ext_disp_audio_setup_params *params);
+
+/**
+ * sde_hdmi_audio_off() - disable hdmi audio.
+ * @hdmi:          Handle to the hdmi.
+ *
+ * Return: void.
+ */
+void sde_hdmi_audio_off(struct hdmi *hdmi);
+
+/**
+ * sde_hdmi_config_avmute() - mute hdmi.
+ * @hdmi:          Handle to the hdmi.
+ * @set:           enable/disable avmute.
+ *
+ * Return: error code.
+ */
+int sde_hdmi_config_avmute(struct hdmi *hdmi, bool set);
+
+/**
+ * sde_hdmi_notify_clients() - notify hdmi clients of the connection status.
+ * @connector:     Handle to the drm_connector.
+ * @connected:     connection status.
+ *
+ * Return: void.
+ */
+void sde_hdmi_notify_clients(struct drm_connector *connector,
+	bool connected);
+
+/**
+ * sde_hdmi_ack_state() - acknowledge the connection status.
+ * @connector:     Handle to the drm_connector.
+ * @status:        connection status.
+ *
+ * Return: void.
+ */
+void sde_hdmi_ack_state(struct drm_connector *connector,
+	enum drm_connector_status status);
+
+/**
+ * sde_hdmi_edid_init() - init edid structure.
+ * @display:     Handle to the sde_hdmi.
+ *
+ * Return: error code.
+ */
+int sde_hdmi_edid_init(struct sde_hdmi *display);
+
+/**
+ * sde_hdmi_edid_deinit() - deinit edid structure.
+ * @display:     Handle to the sde_hdmi.
+ *
+ * Return: error code.
+ */
+int sde_hdmi_edid_deinit(struct sde_hdmi *display);
+
+/**
+ * sde_hdmi_get_edid() - get edid info.
+ * @connector:   Handle to the drm_connector.
+ * @display:     Handle to the sde_hdmi.
+ *
+ * Return: void.
+ */
+void sde_hdmi_get_edid(struct drm_connector *connector,
+	struct sde_hdmi *display);
+
+/**
+ * sde_hdmi_free_edid() - free edid structure.
+ * @display:     Handle to the sde_hdmi.
+ *
+ * Return: error code.
+ */
+int sde_hdmi_free_edid(struct sde_hdmi *display);
 
 #else /*#ifdef CONFIG_DRM_SDE_HDMI*/
 

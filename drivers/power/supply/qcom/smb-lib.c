@@ -381,13 +381,13 @@ static int smblib_set_opt_freq_buck(struct smb_charger *chg, int fsw_khz)
 
 	if (chg->mode == PARALLEL_MASTER && chg->pl.psy) {
 		pval.intval = fsw_khz;
-		rc = power_supply_set_property(chg->pl.psy,
+		/*
+		 * Some parallel charging implementations may not have
+		 * PROP_BUCK_FREQ property - they could be running
+		 * with a fixed frequency
+		 */
+		power_supply_set_property(chg->pl.psy,
 				POWER_SUPPLY_PROP_BUCK_FREQ, &pval);
-		if (rc < 0) {
-			dev_err(chg->dev,
-				"Could not set parallel buck_freq rc=%d\n", rc);
-			return rc;
-		}
 	}
 
 	return rc;
@@ -474,6 +474,36 @@ int smblib_set_dc_suspend(struct smb_charger *chg, bool suspend)
 	return rc;
 }
 
+static int smblib_set_adapter_allowance(struct smb_charger *chg,
+					u8 allowed_voltage)
+{
+	int rc = 0;
+
+	switch (allowed_voltage) {
+	case USBIN_ADAPTER_ALLOW_12V:
+	case USBIN_ADAPTER_ALLOW_5V_OR_12V:
+	case USBIN_ADAPTER_ALLOW_9V_TO_12V:
+	case USBIN_ADAPTER_ALLOW_5V_OR_9V_TO_12V:
+	case USBIN_ADAPTER_ALLOW_5V_TO_12V:
+		/* PM660 only support max. 9V */
+		if (chg->smb_version == PM660_SUBTYPE) {
+			smblib_dbg(chg, PR_MISC, "voltage not supported=%d\n",
+					allowed_voltage);
+			allowed_voltage = USBIN_ADAPTER_ALLOW_5V_OR_9V;
+		}
+		break;
+	}
+
+	rc = smblib_write(chg, USBIN_ADAPTER_ALLOW_CFG_REG, allowed_voltage);
+	if (rc < 0) {
+		smblib_err(chg, "Couldn't write 0x%02x to USBIN_ADAPTER_ALLOW_CFG rc=%d\n",
+			allowed_voltage, rc);
+		return rc;
+	}
+
+	return rc;
+}
+
 #define MICRO_5V	5000000
 #define MICRO_9V	9000000
 #define MICRO_12V	12000000
@@ -504,10 +534,10 @@ static int smblib_set_usb_pd_allowed_voltage(struct smb_charger *chg,
 		return -EINVAL;
 	}
 
-	rc = smblib_write(chg, USBIN_ADAPTER_ALLOW_CFG_REG, allowed_voltage);
+	rc = smblib_set_adapter_allowance(chg, allowed_voltage);
 	if (rc < 0) {
-		smblib_err(chg, "Couldn't write 0x%02x to USBIN_ADAPTER_ALLOW_CFG rc=%d\n",
-			allowed_voltage, rc);
+		smblib_err(chg, "Couldn't configure adapter allowance rc=%d\n",
+				rc);
 		return rc;
 	}
 
@@ -517,6 +547,26 @@ static int smblib_set_usb_pd_allowed_voltage(struct smb_charger *chg,
 /********************
  * HELPER FUNCTIONS *
  ********************/
+
+static void smblib_rerun_apsd(struct smb_charger *chg)
+{
+	int rc;
+
+	smblib_dbg(chg, PR_MISC, "re-running APSD\n");
+	if (chg->wa_flags & QC_AUTH_INTERRUPT_WA_BIT) {
+		rc = smblib_masked_write(chg,
+				USBIN_SOURCE_CHANGE_INTRPT_ENB_REG,
+				AUTH_IRQ_EN_CFG_BIT, AUTH_IRQ_EN_CFG_BIT);
+		if (rc < 0)
+			smblib_err(chg, "Couldn't enable HVDCP auth IRQ rc=%d\n",
+									rc);
+	}
+
+	rc = smblib_masked_write(chg, CMD_APSD_REG,
+				APSD_RERUN_BIT, APSD_RERUN_BIT);
+	if (rc < 0)
+		smblib_err(chg, "Couldn't re-run APSD rc=%d\n", rc);
+}
 
 static int try_rerun_apsd_for_hvdcp(struct smb_charger *chg)
 {
@@ -535,11 +585,7 @@ static int try_rerun_apsd_for_hvdcp(struct smb_charger *chg)
 				chg->hvdcp_disable_votable_indirect)) {
 			apsd_result = smblib_get_apsd_result(chg);
 			if (apsd_result->bit & (QC_2P0_BIT | QC_3P0_BIT)) {
-				/* rerun APSD */
-				smblib_dbg(chg, PR_MISC, "rerun APSD\n");
-				smblib_masked_write(chg, CMD_APSD_REG,
-						APSD_RERUN_BIT,
-						APSD_RERUN_BIT);
+				smblib_rerun_apsd(chg);
 			}
 		}
 	}
@@ -551,12 +597,13 @@ static const struct apsd_result *smblib_update_usb_type(struct smb_charger *chg)
 	const struct apsd_result *apsd_result = smblib_get_apsd_result(chg);
 
 	/* if PD is active, APSD is disabled so won't have a valid result */
-	if (chg->pd_active) {
+	if (chg->pd_active)
 		chg->usb_psy_desc.type = POWER_SUPPLY_TYPE_USB_PD;
-		return apsd_result;
-	}
+	else
+		chg->usb_psy_desc.type = apsd_result->pst;
 
-	chg->usb_psy_desc.type = apsd_result->pst;
+	smblib_dbg(chg, PR_MISC, "APSD=%s PD=%d\n",
+					apsd_result->name, chg->pd_active);
 	return apsd_result;
 }
 
@@ -650,8 +697,8 @@ static void smblib_uusb_removal(struct smb_charger *chg)
 	}
 
 	/* reconfigure allowed voltage for HVDCP */
-	rc = smblib_write(chg, USBIN_ADAPTER_ALLOW_CFG_REG,
-			  USBIN_ADAPTER_ALLOW_5V_OR_9V_TO_12V);
+	rc = smblib_set_adapter_allowance(chg,
+			USBIN_ADAPTER_ALLOW_5V_OR_9V_TO_12V);
 	if (rc < 0)
 		smblib_err(chg, "Couldn't set USBIN_ADAPTER_ALLOW_5V_OR_9V_TO_12V rc=%d\n",
 			rc);
@@ -734,16 +781,7 @@ int smblib_rerun_apsd_if_required(struct smb_charger *chg)
 	apsd_result = smblib_get_apsd_result(chg);
 	if ((apsd_result->pst == POWER_SUPPLY_TYPE_UNKNOWN)
 		|| (apsd_result->pst == POWER_SUPPLY_TYPE_USB)) {
-		/* rerun APSD */
-		pr_info("Reruning APSD type = %s at bootup\n",
-				apsd_result->name);
-		rc = smblib_masked_write(chg, CMD_APSD_REG,
-					APSD_RERUN_BIT,
-					APSD_RERUN_BIT);
-		if (rc < 0) {
-			smblib_err(chg, "Couldn't rerun APSD rc = %d\n", rc);
-			return rc;
-		}
+		smblib_rerun_apsd(chg);
 	}
 
 	return 0;
@@ -921,7 +959,6 @@ override_suspend_config:
 
 enable_icl_changed_interrupt:
 	enable_irq(chg->irq_info[USBIN_ICL_CHANGE_IRQ].irq);
-
 	return rc;
 }
 
@@ -1253,11 +1290,14 @@ int smblib_vconn_regulator_is_enabled(struct regulator_dev *rdev)
 /*****************
  * OTG REGULATOR *
  *****************/
-
+#define MAX_RETRY		15
+#define MIN_DELAY_US		2000
+#define MAX_DELAY_US		9000
 static int _smblib_vbus_regulator_enable(struct regulator_dev *rdev)
 {
 	struct smb_charger *chg = rdev_get_drvdata(rdev);
-	int rc;
+	int rc, retry_count = 0, min_delay = MIN_DELAY_US;
+	u8 stat;
 
 	smblib_dbg(chg, PR_OTG, "halt 1 in 8 mode\n");
 	rc = smblib_masked_write(chg, OTG_ENG_OTG_CFG_REG,
@@ -1276,6 +1316,42 @@ static int _smblib_vbus_regulator_enable(struct regulator_dev *rdev)
 		return rc;
 	}
 
+	if (chg->wa_flags & OTG_WA) {
+		/* check for softstart */
+		do {
+			usleep_range(min_delay, min_delay + 100);
+			rc = smblib_read(chg, OTG_STATUS_REG, &stat);
+			if (rc < 0) {
+				smblib_err(chg,
+					"Couldn't read OTG status rc=%d\n",
+					rc);
+				goto out;
+			}
+
+			if (stat & BOOST_SOFTSTART_DONE_BIT) {
+				rc = smblib_set_charge_param(chg,
+					&chg->param.otg_cl, chg->otg_cl_ua);
+				if (rc < 0)
+					smblib_err(chg,
+						"Couldn't set otg limit\n");
+				break;
+			}
+
+			/* increase the delay for following iterations */
+			if (retry_count > 5)
+				min_delay = MAX_DELAY_US;
+		} while (retry_count++ < MAX_RETRY);
+
+		if (retry_count >= MAX_RETRY) {
+			smblib_dbg(chg, PR_OTG, "Boost Softstart not done\n");
+			goto out;
+		}
+	}
+
+	return 0;
+out:
+	/* disable OTG if softstart failed */
+	smblib_write(chg, CMD_OTG_REG, 0);
 	return rc;
 }
 
@@ -1309,6 +1385,17 @@ static int _smblib_vbus_regulator_disable(struct regulator_dev *rdev)
 			smblib_err(chg, "Couldn't disable VCONN rc=%d\n", rc);
 	}
 
+	if (chg->wa_flags & OTG_WA) {
+		/* set OTG current limit to minimum value */
+		rc = smblib_set_charge_param(chg, &chg->param.otg_cl,
+						chg->param.otg_cl.min_u);
+		if (rc < 0) {
+			smblib_err(chg,
+				"Couldn't set otg current limit rc=%d\n", rc);
+			return rc;
+		}
+	}
+
 	smblib_dbg(chg, PR_OTG, "disabling OTG\n");
 	rc = smblib_write(chg, CMD_OTG_REG, 0);
 	if (rc < 0) {
@@ -1317,7 +1404,6 @@ static int _smblib_vbus_regulator_disable(struct regulator_dev *rdev)
 	}
 
 	smblib_dbg(chg, PR_OTG, "start 1 in 8 mode\n");
-	rc = smblib_write(chg, CMD_OTG_REG, 0);
 	rc = smblib_masked_write(chg, OTG_ENG_OTG_CFG_REG,
 				 ENG_BUCKBOOST_HALT1_8_MODE_BIT, 0);
 	if (rc < 0) {
@@ -1720,33 +1806,54 @@ int smblib_set_prop_system_temp_level(struct smb_charger *chg,
 
 int smblib_rerun_aicl(struct smb_charger *chg)
 {
-	int rc = 0;
-	u8 val;
+	int rc, settled_icl_ua;
+	u8 stat;
 
-	/*
-	 * Use restart_AICL instead of trigger_AICL as it runs the
-	 * complete AICL instead of starting from the last settled value.
-	 *
-	 * 8998 only supports trigger_AICL return error for 8998
-	 */
+	rc = smblib_read(chg, POWER_PATH_STATUS_REG, &stat);
+	if (rc < 0) {
+		smblib_err(chg, "Couldn't read POWER_PATH_STATUS rc=%d\n",
+								rc);
+		return rc;
+	}
+
+	/* USB is suspended so skip re-running AICL */
+	if (stat & USBIN_SUSPEND_STS_BIT)
+		return rc;
+
+	smblib_dbg(chg, PR_MISC, "re-running AICL\n");
 	switch (chg->smb_version) {
 	case PMI8998_SUBTYPE:
-		smblib_dbg(chg, PR_PARALLEL, "AICL rerun not supported\n");
-		return -EINVAL;
+		rc = smblib_get_charge_param(chg, &chg->param.icl_stat,
+							&settled_icl_ua);
+		if (rc < 0) {
+			smblib_err(chg, "Couldn't get settled ICL rc=%d\n", rc);
+			return rc;
+		}
+
+		vote(chg->usb_icl_votable, AICL_RERUN_VOTER, true,
+				max(settled_icl_ua - chg->param.usb_icl.step_u,
+				chg->param.usb_icl.step_u));
+		vote(chg->usb_icl_votable, AICL_RERUN_VOTER, false, 0);
+		break;
 	case PM660_SUBTYPE:
-		val = RESTART_AICL_BIT;
+		/*
+		 * Use restart_AICL instead of trigger_AICL as it runs the
+		 * complete AICL instead of starting from the last settled
+		 * value.
+		 */
+		rc = smblib_masked_write(chg, CMD_HVDCP_2_REG,
+					RESTART_AICL_BIT, RESTART_AICL_BIT);
+		if (rc < 0)
+			smblib_err(chg, "Couldn't write to CMD_HVDCP_2_REG rc=%d\n",
+									rc);
 		break;
 	default:
 		smblib_dbg(chg, PR_PARALLEL, "unknown SMB chip %d\n",
 				chg->smb_version);
 		return -EINVAL;
 	}
-	rc = smblib_masked_write(chg, CMD_HVDCP_2_REG, val, val);
-	if (rc < 0)
-		smblib_err(chg, "Couldn't write to CMD_HVDCP_2_REG rc=%d\n",
-				rc);
 
-	return rc;
+	return 0;
 }
 
 static int smblib_dp_pulse(struct smb_charger *chg)
@@ -2403,6 +2510,10 @@ int smblib_set_prop_usb_voltage_max(struct smb_charger *chg,
 	}
 
 	chg->voltage_max_uv = max_uv;
+	rc = smblib_rerun_aicl(chg);
+	if (rc < 0)
+		smblib_err(chg, "Couldn't re-run AICL rc=%d\n", rc);
+
 	return rc;
 }
 
@@ -2893,6 +3004,14 @@ irqreturn_t smblib_handle_otg_overcurrent(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
+	if (chg->wa_flags & OTG_WA) {
+		if (stat & OTG_OC_DIS_SW_STS_RT_STS_BIT)
+			smblib_err(chg, "OTG disabled by hw\n");
+
+		/* not handling software based hiccups for PM660 */
+		return IRQ_HANDLED;
+	}
+
 	if (stat & OTG_OVERCURRENT_RT_STS_BIT)
 		schedule_work(&chg->otg_oc_work);
 
@@ -3108,6 +3227,7 @@ irqreturn_t smblib_handle_icl_change(int irq, void *data)
 				|| (stat & AICL_DONE_BIT))
 			delay = 0;
 
+		cancel_delayed_work_sync(&chg->icl_change_work);
 		schedule_delayed_work(&chg->icl_change_work,
 						msecs_to_jiffies(delay));
 	}
@@ -3217,11 +3337,22 @@ static void smblib_handle_hvdcp_3p0_auth_done(struct smb_charger *chg,
 	if (chg->mode == PARALLEL_MASTER)
 		vote(chg->pl_enable_votable_indirect, USBIN_V_VOTER, true, 0);
 
+	/* the APSD done handler will set the USB supply type */
+	apsd_result = smblib_get_apsd_result(chg);
+	if (get_effective_result(chg->hvdcp_hw_inov_dis_votable)) {
+		if (apsd_result->pst == POWER_SUPPLY_TYPE_USB_HVDCP) {
+			/* force HVDCP2 to 9V if INOV is disabled */
+			rc = smblib_masked_write(chg, CMD_HVDCP_2_REG,
+					FORCE_9V_BIT, FORCE_9V_BIT);
+			if (rc < 0)
+				smblib_err(chg,
+					"Couldn't force 9V HVDCP rc=%d\n", rc);
+		}
+	}
+
 	/* QC authentication done, parallel charger can be enabled now */
 	vote(chg->pl_disable_votable, PL_DELAY_HVDCP_VOTER, false, 0);
 
-	/* the APSD done handler will set the USB supply type */
-	apsd_result = smblib_get_apsd_result(chg);
 	smblib_dbg(chg, PR_INTERRUPT, "IRQ: hvdcp-3p0-auth-done rising; %s detected\n",
 		   apsd_result->name);
 }
@@ -3381,8 +3512,8 @@ static void typec_source_removal(struct smb_charger *chg)
 	}
 
 	/* reconfigure allowed voltage for HVDCP */
-	rc = smblib_write(chg, USBIN_ADAPTER_ALLOW_CFG_REG,
-			  USBIN_ADAPTER_ALLOW_5V_OR_9V_TO_12V);
+	rc = smblib_set_adapter_allowance(chg,
+			USBIN_ADAPTER_ALLOW_5V_OR_9V_TO_12V);
 	if (rc < 0)
 		smblib_err(chg, "Couldn't set USBIN_ADAPTER_ALLOW_5V_OR_9V_TO_12V rc=%d\n",
 			rc);

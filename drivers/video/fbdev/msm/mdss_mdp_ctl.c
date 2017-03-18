@@ -73,8 +73,18 @@ static void __mdss_mdp_mixer_write_cfg(struct mdss_mdp_mixer *mixer,
 
 static inline u64 fudge_factor(u64 val, u32 numer, u32 denom)
 {
-	u64 result = (val * (u64)numer);
-	do_div(result, denom);
+	u64 result = val;
+
+	if (val) {
+		u64 temp = -1UL;
+
+		do_div(temp, val);
+		if (temp > numer) {
+			/* no overflow, so we can do the operation*/
+			result = (val * (u64)numer);
+			do_div(result, denom);
+		}
+	}
 	return result;
 }
 
@@ -892,7 +902,7 @@ static u32 __calc_prefill_line_time_us(struct mdss_mdp_ctl *ctl)
 
 static u32 __get_min_prefill_line_time_us(struct mdss_mdp_ctl *ctl)
 {
-	u32 vbp_min = 0;
+	u32 vbp_min = UINT_MAX;
 	int i;
 	struct mdss_data_type *mdata;
 
@@ -913,6 +923,9 @@ static u32 __get_min_prefill_line_time_us(struct mdss_mdp_ctl *ctl)
 			vbp_min = min(vbp_min, vbp_fac);
 		}
 	}
+
+	if (vbp_min == UINT_MAX)
+		vbp_min = 0;
 
 	return vbp_min;
 }
@@ -2260,8 +2273,8 @@ static bool __mdss_mdp_compare_bw(
 		__calc_bus_ib_quota(mdata, new_perf, is_nrt, new_perf->bw_ctl);
 	u64 old_ib =
 		__calc_bus_ib_quota(mdata, old_perf, is_nrt, old_perf->bw_ctl);
-	u64 max_new_bw = max(new_perf->bw_ctl, new_ib);
-	u64 max_old_bw = max(old_perf->bw_ctl, old_ib);
+	u64 new_ab = new_perf->bw_ctl;
+	u64 old_ab = old_perf->bw_ctl;
 	bool update_bw = false;
 
 	/*
@@ -2273,16 +2286,18 @@ static bool __mdss_mdp_compare_bw(
 	 * 3. end of writeback/rotator session - last chance to
 	 *		non-realtime remove vote.
 	 */
-	if ((params_changed && ((max_new_bw > max_old_bw) || /* ab and ib bw */
+	if ((params_changed &&
+			(((new_ib > old_ib) || (new_ab > old_ab)) ||
 			(new_perf->bw_writeback > old_perf->bw_writeback))) ||
-			(!params_changed && ((max_new_bw < max_old_bw) ||
+			(!params_changed &&
+			(((new_ib < old_ib) || (new_ab < old_ab)) ||
 			(new_perf->bw_writeback < old_perf->bw_writeback))) ||
 			(stop_req && is_nrt))
 		update_bw = true;
 
 	trace_mdp_compare_bw(new_perf->bw_ctl, new_ib, new_perf->bw_writeback,
-		max_new_bw, old_perf->bw_ctl, old_ib, old_perf->bw_writeback,
-		max_old_bw, params_changed, update_bw);
+		old_perf->bw_ctl, old_ib, old_perf->bw_writeback,
+		params_changed, update_bw);
 
 	return update_bw;
 }

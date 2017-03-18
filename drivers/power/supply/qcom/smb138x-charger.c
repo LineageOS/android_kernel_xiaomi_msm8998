@@ -45,6 +45,7 @@
 #define STACKED_DIODE_EN_BIT		BIT(2)
 
 #define TDIE_AVG_COUNT	10
+#define MAX_SPEED_READING_TIMES		5
 
 enum {
 	OOB_COMP_WA_BIT = BIT(0),
@@ -126,8 +127,16 @@ static int smb138x_get_prop_charger_temp(struct smb138x *chip,
 	union power_supply_propval pval;
 	int rc = 0, avg = 0, i;
 	struct smb_charger *chg = &chip->chg;
+	int die_avg_count;
 
-	for (i = 0; i < TDIE_AVG_COUNT; i++) {
+	if (chg->temp_speed_reading_count < MAX_SPEED_READING_TIMES) {
+		chg->temp_speed_reading_count++;
+		die_avg_count = 1;
+	} else {
+		die_avg_count = TDIE_AVG_COUNT;
+	}
+
+	for (i = 0; i < die_avg_count; i++) {
 		pval.intval = 0;
 		rc = smblib_get_prop_charger_temp(chg, &pval);
 		if (rc < 0) {
@@ -137,7 +146,7 @@ static int smb138x_get_prop_charger_temp(struct smb138x *chip,
 		}
 		avg += pval.intval;
 	}
-	val->intval = avg / TDIE_AVG_COUNT;
+	val->intval = avg / die_avg_count;
 	return rc;
 }
 
@@ -644,10 +653,6 @@ static int smb138x_parallel_set_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
 		rc = smblib_set_charge_param(chg, &chg->param.fcc, val->intval);
 		break;
-	case POWER_SUPPLY_PROP_BUCK_FREQ:
-		rc = smblib_set_charge_param(chg, &chg->param.freq_buck,
-					     val->intval);
-		break;
 	case POWER_SUPPLY_PROP_SET_SHIP_MODE:
 		/* Not in ship mode as long as the device is active */
 		if (!val->intval)
@@ -655,7 +660,7 @@ static int smb138x_parallel_set_prop(struct power_supply *psy,
 		rc = smblib_set_prop_ship_mode(chg, val);
 		break;
 	default:
-		pr_err("parallel power supply set prop %d not supported\n",
+		pr_debug("parallel power supply set prop %d not supported\n",
 			prop);
 		return -EINVAL;
 	}
@@ -933,6 +938,13 @@ static int smb138x_init_hw(struct smb138x *chip)
 		DEFAULT_VOTER, true, chip->dt.dc_icl_ua);
 
 	chg->dcp_icl_ua = chip->dt.usb_icl_ua;
+
+	/* configure to a fixed 700khz freq to avoid tdie errors */
+	rc = smblib_set_charge_param(chg, &chg->param.freq_buck, 700);
+	if (rc < 0) {
+		pr_err("Couldn't configure 700Khz switch freq rc=%d\n", rc);
+		return rc;
+	}
 
 	/* configure charge enable for software control; active high */
 	rc = smblib_masked_write(chg, CHGR_CFG2_REG,

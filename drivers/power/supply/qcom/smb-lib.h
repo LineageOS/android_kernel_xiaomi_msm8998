@@ -57,6 +57,7 @@ enum print_reason {
 #define PL_DELAY_HVDCP_VOTER		"PL_DELAY_HVDCP_VOTER"
 #define CTM_VOTER			"CTM_VOTER"
 #define SW_QC3_VOTER			"SW_QC3_VOTER"
+#define AICL_RERUN_VOTER		"AICL_RERUN_VOTER"
 
 #define VCONN_MAX_ATTEMPTS	3
 #define OTG_MAX_ATTEMPTS	3
@@ -79,6 +80,7 @@ enum {
 	BOOST_BACK_WA			= BIT(1),
 	TYPEC_CC2_REMOVAL_WA_BIT	= BIT(2),
 	QC_AUTH_INTERRUPT_WA_BIT	= BIT(3),
+	OTG_WA				= BIT(4),
 };
 
 enum smb_irq_index {
@@ -304,11 +306,13 @@ struct smb_charger {
 	int			otg_attempts;
 	int			vconn_attempts;
 	int			default_icl_ua;
+	int			otg_cl_ua;
 
 	/* workaround flag */
 	u32			wa_flags;
 	enum cc2_sink_type	cc2_sink_detach_flag;
 	int			boost_current_ua;
+	int			temp_speed_reading_count;
 
 	/* extcon for VBUS / ID notification to USB for uUSB */
 	struct extcon_dev	*extcon;

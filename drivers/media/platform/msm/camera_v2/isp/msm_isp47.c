@@ -331,6 +331,7 @@ int msm_vfe47_init_hardware(struct vfe_device *vfe_dev)
 		goto ahb_vote_fail;
 	}
 	vfe_dev->ahb_vote = CAM_AHB_SVS_VOTE;
+	vfe_dev->turbo_vote = 0;
 
 	vfe_dev->common_data->dual_vfe_res->vfe_base[vfe_dev->pdev->id] =
 		vfe_dev->vfe_base;
@@ -763,7 +764,7 @@ long msm_vfe47_reset_hardware(struct vfe_device *vfe_dev,
 	}
 
 	if (blocking_call) {
-		rc = wait_for_completion_timeout(
+		rc = wait_for_completion_interruptible_timeout(
 			&vfe_dev->reset_complete, msecs_to_jiffies(100));
 		if (rc <= 0) {
 			pr_err("%s:%d failed: reset timeout\n", __func__,
@@ -1494,6 +1495,10 @@ void msm_vfe47_configure_hvx(struct vfe_device *vfe_dev,
 	uint32_t val;
 	int rc = 0;
 
+	if (is_stream_on == vfe_dev->cur_hvx_state) {
+		ISP_DBG("already in same hvx state\n");
+		return;
+	}
 	if (vfe_dev->buf_mgr->secure_enable == SECURE_MODE) {
 		pr_err("%s: Cannot configure hvx, secure_mode: %d\n",
 			__func__,
@@ -1527,6 +1532,7 @@ void msm_vfe47_configure_hvx(struct vfe_device *vfe_dev,
 		val &= 0xFFFFFFF7;
 		msm_camera_io_w_mb(val, vfe_dev->vfe_base + 0x50);
 	}
+	vfe_dev->cur_hvx_state = is_stream_on;
 }
 
 void msm_vfe47_update_camif_state(struct vfe_device *vfe_dev,
@@ -1930,7 +1936,7 @@ int msm_vfe47_axi_halt(struct vfe_device *vfe_dev,
 		init_completion(&vfe_dev->halt_complete);
 		/* Halt AXI Bus Bridge */
 		msm_camera_io_w_mb(0x1, vfe_dev->vfe_base + 0x400);
-		rc = wait_for_completion_timeout(
+		rc = wait_for_completion_interruptible_timeout(
 			&vfe_dev->halt_complete, msecs_to_jiffies(500));
 		if (rc <= 0)
 			pr_err("%s:VFE%d halt timeout rc=%d\n", __func__,
@@ -2556,6 +2562,7 @@ int msm_vfe47_set_clk_rate(struct vfe_device *vfe_dev, long *rate)
 {
 	int rc = 0;
 	int clk_idx = vfe_dev->hw_info->vfe_clk_idx;
+	int ret;
 
 	rc = msm_camera_clk_set_rate(&vfe_dev->pdev->dev,
 				vfe_dev->vfe_clk[clk_idx], *rate);
@@ -2563,7 +2570,26 @@ int msm_vfe47_set_clk_rate(struct vfe_device *vfe_dev, long *rate)
 		return rc;
 	*rate = clk_round_rate(vfe_dev->vfe_clk[clk_idx], *rate);
 	vfe_dev->msm_isp_vfe_clk_rate = *rate;
-
+	if (vfe_dev->vfe_cx_ipeak) {
+		if (vfe_dev->msm_isp_vfe_clk_rate >=
+			vfe_dev->vfe_clk_rates[MSM_VFE_CLK_RATE_TURBO]
+			[vfe_dev->hw_info->vfe_clk_idx] &&
+			vfe_dev->turbo_vote == 0) {
+			ret = cx_ipeak_update(vfe_dev->vfe_cx_ipeak, true);
+			if (ret)
+				pr_debug("%s: cx_ipeak_update failed %d\n",
+					__func__, ret);
+			else
+				vfe_dev->turbo_vote = 1;
+		} else if (vfe_dev->turbo_vote == 1) {
+			ret = cx_ipeak_update(vfe_dev->vfe_cx_ipeak, false);
+			if (ret)
+				pr_debug("%s: cx_ipeak_update failed %d\n",
+					__func__, ret);
+			else
+				vfe_dev->turbo_vote = 0;
+		}
+	}
 	if (vfe_dev->hw_info->vfe_ops.core_ops.ahb_clk_cfg)
 		vfe_dev->hw_info->vfe_ops.core_ops.ahb_clk_cfg(vfe_dev, NULL);
 	return 0;
