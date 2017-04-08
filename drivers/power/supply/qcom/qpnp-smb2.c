@@ -999,6 +999,8 @@ static int smb2_batt_set_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_QNOVO:
 		chg->qnovo_fcc_ua = val->intval;
+		vote(chg->pl_disable_votable, PL_QNOVO_VOTER,
+			val->intval != -EINVAL && val->intval < 2000000, 0);
 		rc = rerun_election(chg->fcc_votable);
 		break;
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
@@ -1654,6 +1656,15 @@ static int smb2_init_hw(struct smb2 *chip)
 	return rc;
 }
 
+static int smb2_post_init(struct smb2 *chip)
+{
+	struct smb_charger *chg = &chip->chg;
+
+	rerun_election(chg->usb_irq_enable_votable);
+
+	return 0;
+}
+
 static int smb2_chg_config_init(struct smb2 *chip)
 {
 	struct smb_charger *chg = &chip->chg;
@@ -2182,6 +2193,8 @@ static int smb2_probe(struct platform_device *pdev)
 		pr_err("Couldn't request interrupts rc=%d\n", rc);
 		goto cleanup;
 	}
+
+	smb2_post_init(chip);
 
 	smb2_create_debugfs(chip);
 
