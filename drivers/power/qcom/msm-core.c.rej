@@ -1,0 +1,35 @@
+diff a/drivers/power/qcom/msm-core.c b/drivers/power/qcom/msm-core.c	(rejected hunks)
+@@ -100,18 +100,24 @@ struct cpu_static_info {
+ static DEFINE_MUTEX(policy_update_mutex);
+ static DEFINE_MUTEX(kthread_update_mutex);
+ static DEFINE_SPINLOCK(update_lock);
++#ifdef ENABLE_TSENS_SAMPLING
+ static struct delayed_work sampling_work;
+ static struct completion sampling_completion;
+ static struct task_struct *sampling_task;
+ static int low_hyst_temp;
+ static int high_hyst_temp;
++static uint32_t scaling_factor;
++#endif
+ static struct platform_device *msm_core_pdev;
+ static struct cpu_activity_info activity[NR_CPUS];
+ DEFINE_PER_CPU(struct cpu_pstate_pwr *, ptable);
+ static struct cpu_pwr_stats cpu_stats[NR_CPUS];
+-static uint32_t scaling_factor;
+ ALLOCATE_2D_ARRAY(uint32_t);
+ 
++/*
++ * Userspace checks for the presence of poll_ms and disabled, so keep them
++ * even when ENABLE_TSENS_SAMPLING isn't used.
++ */
+ static __read_mostly int poll_ms;
+ static __read_mostly int poll_ms_dummy;
+ module_param_named(polling_interval, poll_ms_dummy, int,
+@@ -120,6 +126,7 @@ module_param_named(polling_interval, poll_ms_dummy, int,
+ static __read_mostly int disabled;
+ module_param_named(disabled, disabled, int,
+ 		S_IRUGO | S_IWUSR | S_IWGRP);
++#ifdef ENABLE_TSENS_SAMPLING
+ static bool in_suspend;
+ static bool activate_power_table;
+ static int max_throttling_temp = 80; /* in C */

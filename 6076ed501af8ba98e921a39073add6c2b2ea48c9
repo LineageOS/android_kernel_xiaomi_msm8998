@@ -1,0 +1,909 @@
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+  <link rel="dns-prefetch" href="https://assets-cdn.github.com">
+  <link rel="dns-prefetch" href="https://avatars0.githubusercontent.com">
+  <link rel="dns-prefetch" href="https://avatars1.githubusercontent.com">
+  <link rel="dns-prefetch" href="https://avatars2.githubusercontent.com">
+  <link rel="dns-prefetch" href="https://avatars3.githubusercontent.com">
+  <link rel="dns-prefetch" href="https://github-cloud.s3.amazonaws.com">
+  <link rel="dns-prefetch" href="https://user-images.githubusercontent.com/">
+
+
+
+  <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://assets-cdn.github.com/assets/frameworks-592c4aa40e940d1b0607a3cf272916ff.css" />
+  <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://assets-cdn.github.com/assets/github-fdbbae74da4136fd4258a92eb943be60.css" />
+  
+  
+  <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://assets-cdn.github.com/assets/site-348211d27070b0d7bb5d31b1ac3d265b.css" />
+  
+
+  <meta name="viewport" content="width=device-width">
+  
+  <title>msm-core: disable userspace access to poll_ms · ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998@6076ed5 · GitHub</title>
+    <meta name="description" content="GitHub is where people build software. More than 27 million people use GitHub to discover, fork, and contribute to over 80 million projects.">
+  <link rel="search" type="application/opensearchdescription+xml" href="/opensearch.xml" title="GitHub">
+  <link rel="fluid-icon" href="https://github.com/fluidicon.png" title="GitHub">
+  <meta property="fb:app_id" content="1401488693436528">
+
+    
+    <meta property="og:image" content="https://avatars1.githubusercontent.com/u/5400990?s=200&amp;v=4" /><meta property="og:site_name" content="GitHub" /><meta property="og:type" content="object" /><meta property="og:title" content="msm-core: disable userspace access to poll_ms · ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998@6076ed5" /><meta property="og:url" content="https://github.com/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/commit/6076ed501af8ba98e921a39073add6c2b2ea48c9" /><meta property="og:description" content="perfd on OxygenOS writes 0 to poll_ms, which is definitely not intended
+
+Signed-off-by: Park Ju Hyung &lt;qkrwngud825@gmail.com&gt;
+Signed-off-by: Nathan Chancellor &lt;natechancellor@gmail.com&gt;" /><meta property="og:updated_time" content="1524390394" />
+
+  <link rel="assets" href="https://assets-cdn.github.com/">
+  
+  <meta name="pjax-timeout" content="1000">
+  
+  <meta name="request-id" content="5F4A:6F40:4F74A25:9761645:5ADD8F79" data-pjax-transient>
+
+
+  
+
+  <meta name="selected-link" value="repo_commits" data-pjax-transient>
+
+    <meta name="google-site-verification" content="KT5gs8h0wvaagLKAVWq8bbeNwnZZK1r1XQysX3xurLU">
+  <meta name="google-site-verification" content="ZzhVyEFwb7w3e0-uOTltm8Jsck2F5StVihD0exw2fsA">
+  <meta name="google-site-verification" content="GXs5KoUUkNCoaAZn7wPN-t01Pywp9M3sEjnt_3_ZWPc">
+    <meta name="google-analytics" content="UA-3769691-2">
+
+<meta name="octolytics-host" content="collector.githubapp.com" /><meta name="octolytics-app-id" content="github" /><meta name="octolytics-event-url" content="https://collector.githubapp.com/github-external/browser_event" /><meta name="octolytics-dimension-request_id" content="5F4A:6F40:4F74A25:9761645:5ADD8F79" /><meta name="octolytics-dimension-region_edge" content="iad" /><meta name="octolytics-dimension-region_render" content="iad" />
+<meta name="analytics-location" content="/&lt;user-name&gt;/&lt;repo-name&gt;/commit/show" data-pjax-transient="true" />
+
+
+
+
+  <meta class="js-ga-set" name="dimension1" content="Logged Out">
+
+
+  
+
+      <meta name="hostname" content="github.com">
+    <meta name="user-login" content="">
+
+      <meta name="expected-hostname" content="github.com">
+    <meta name="js-proxy-site-detection-payload" content="ZjU5MjI2MjExOGQ4MTYxZjFkNjc0ZDI3NThiNjUxMDEwZmI1YTIxMDcyZTAwZWNkOGY4NTJmZmUzNjY5ZGViYXx7InJlbW90ZV9hZGRyZXNzIjoiMjEzLjI0Ni40Mi42NiIsInJlcXVlc3RfaWQiOiI1RjRBOjZGNDA6NEY3NEEyNTo5NzYxNjQ1OjVBREQ4Rjc5IiwidGltZXN0YW1wIjoxNTI0NDY5NjI2LCJob3N0IjoiZ2l0aHViLmNvbSJ9">
+
+    <meta name="enabled-features" content="UNIVERSE_BANNER,FREE_TRIALS,MARKETPLACE_INSIGHTS,MARKETPLACE_SELF_SERVE,MARKETPLACE_INSIGHTS_CONVERSION_PERCENTAGES">
+
+  <meta name="html-safe-nonce" content="1ff7474f3e0b5f3174fee442596dcdec6a9c17d4">
+
+  <meta http-equiv="x-pjax-version" content="10c80ea533591cecc9bf0d03e9bbdc45">
+  
+
+      <link href="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/commit/6076ed501af8ba98e921a39073add6c2b2ea48c9.diff" rel="alternate" type="text/plain+diff" data-pjax-transient="true" />
+  <link href="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/commit/6076ed501af8ba98e921a39073add6c2b2ea48c9.patch" rel="alternate" type="text/plain+patch" data-pjax-transient="true" />
+
+  <meta name="diff-view" content="unified" data-pjax-transient>
+  <link href="https://github.com/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/commits/6076ed501af8ba98e921a39073add6c2b2ea48c9.atom" rel="alternate" title="Recent Commits to abc_kernel_xiaomi_msm8998:6076ed501af8ba98e921a39073add6c2b2ea48c9" type="application/atom+xml">
+
+  <meta name="description" content="Contribute to abc_kernel_xiaomi_msm8998 development by creating an account on GitHub.">
+  <meta name="go-import" content="github.com/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998 git https://github.com/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998.git">
+
+  <meta name="octolytics-dimension-user_id" content="36826313" /><meta name="octolytics-dimension-user_login" content="ABCrom-Xiaomi" /><meta name="octolytics-dimension-repository_id" content="127319808" /><meta name="octolytics-dimension-repository_nwo" content="ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998" /><meta name="octolytics-dimension-repository_public" content="true" /><meta name="octolytics-dimension-repository_is_fork" content="false" /><meta name="octolytics-dimension-repository_network_root_id" content="127319808" /><meta name="octolytics-dimension-repository_network_root_nwo" content="ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998" /><meta name="octolytics-dimension-repository_explore_github_marketplace_ci_cta_shown" content="false" />
+
+
+
+
+  <meta name="browser-stats-url" content="https://api.github.com/_private/browser/stats">
+
+  <meta name="browser-errors-url" content="https://api.github.com/_private/browser/errors">
+
+  <link rel="mask-icon" href="https://assets-cdn.github.com/pinned-octocat.svg" color="#000000">
+  <link rel="icon" type="image/x-icon" class="js-site-favicon" href="https://assets-cdn.github.com/favicon.ico">
+
+<meta name="theme-color" content="#1e2327">
+
+
+
+<link rel="manifest" href="/manifest.json" crossOrigin="use-credentials">
+
+  </head>
+
+  <body class="logged-out env-production">
+    
+
+  <div class="position-relative js-header-wrapper ">
+    <a href="#start-of-content" tabindex="1" class="px-2 py-4 bg-blue text-white show-on-focus js-skip-to-content">Skip to content</a>
+    <div id="js-pjax-loader-bar" class="pjax-loader-bar"><div class="progress"></div></div>
+
+    
+    
+    
+
+
+
+        <header class="Header header-logged-out  position-relative f4 py-3" role="banner">
+  <div class="container-lg d-flex px-3">
+    <div class="d-flex flex-justify-between flex-items-center">
+      <a class="header-logo-invertocat my-0" href="https://github.com/" aria-label="Homepage" data-ga-click="(Logged out) Header, go to homepage, icon:logo-wordmark">
+        <svg height="32" class="octicon octicon-mark-github" viewBox="0 0 16 16" version="1.1" width="32" aria-hidden="true"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+      </a>
+
+    </div>
+
+    <div class="HeaderMenu HeaderMenu--bright d-flex flex-justify-between flex-auto">
+        <nav class="mt-0">
+          <ul class="d-flex list-style-none">
+              <li class="ml-2">
+                <a class="js-selected-navigation-item HeaderNavlink px-0 py-2 m-0" data-ga-click="Header, click, Nav menu - item:features" data-selected-links="/features /features/project-management /features/code-review /features/project-management /features/integrations /features" href="/features">
+                  Features
+</a>              </li>
+              <li class="ml-4">
+                <a class="js-selected-navigation-item HeaderNavlink px-0 py-2 m-0" data-ga-click="Header, click, Nav menu - item:business" data-selected-links="/business /business/security /business/customers /business" href="/business">
+                  Business
+</a>              </li>
+
+              <li class="ml-4">
+                <a class="js-selected-navigation-item HeaderNavlink px-0 py-2 m-0" data-ga-click="Header, click, Nav menu - item:explore" data-selected-links="/explore /trending /trending/developers /integrations /integrations/feature/code /integrations/feature/collaborate /integrations/feature/ship showcases showcases_search showcases_landing /explore" href="/explore">
+                  Explore
+</a>              </li>
+
+              <li class="ml-4">
+                    <a class="js-selected-navigation-item HeaderNavlink px-0 py-2 m-0" data-ga-click="Header, click, Nav menu - item:marketplace" data-selected-links=" /marketplace" href="/marketplace">
+                      Marketplace
+</a>              </li>
+              <li class="ml-4">
+                <a class="js-selected-navigation-item HeaderNavlink px-0 py-2 m-0" data-ga-click="Header, click, Nav menu - item:pricing" data-selected-links="/pricing /pricing/developer /pricing/team /pricing/business-hosted /pricing/business-enterprise /pricing" href="/pricing">
+                  Pricing
+</a>              </li>
+          </ul>
+        </nav>
+
+      <div class="d-flex">
+          <div class="d-lg-flex flex-items-center mr-3">
+            <div class="header-search scoped-search site-scoped-search js-site-search" role="search">
+  <!-- '"` --><!-- </textarea></xmp> --></option></form><form class="js-site-search-form" data-scoped-search-url="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/search" data-unscoped-search-url="/search" action="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/search" accept-charset="UTF-8" method="get"><input name="utf8" type="hidden" value="&#x2713;" />
+    <label class="form-control header-search-wrapper  js-chromeless-input-container">
+          <a class="header-search-scope no-underline" href="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/commit/6076ed501af8ba98e921a39073add6c2b2ea48c9">This repository</a>
+      <input type="text"
+        class="form-control header-search-input  js-site-search-focus js-site-search-field is-clearable"
+        data-hotkey="s,/"
+        name="q"
+        value=""
+        placeholder="Search"
+        aria-label="Search this repository"
+        data-unscoped-placeholder="Search GitHub"
+        data-scoped-placeholder="Search"
+        autocapitalize="off"
+        >
+        <input type="hidden" class="js-site-search-type-field" name="type" >
+    </label>
+</form></div>
+
+          </div>
+
+        <span class="d-inline-block">
+            <div class="HeaderNavlink px-0 py-2 m-0">
+              <a class="text-bold text-white no-underline" href="/login?return_to=%2FABCrom-Xiaomi%2Fabc_kernel_xiaomi_msm8998%2Fcommit%2F6076ed501af8ba98e921a39073add6c2b2ea48c9" data-ga-click="(Logged out) Header, clicked Sign in, text:sign-in">Sign in</a>
+                <span class="text-gray">or</span>
+                <a class="text-bold text-white no-underline" href="/join?source=header-repo" data-ga-click="(Logged out) Header, clicked Sign up, text:sign-up">Sign up</a>
+            </div>
+        </span>
+      </div>
+    </div>
+  </div>
+</header>
+
+  </div>
+
+  <div id="start-of-content" class="show-on-focus"></div>
+
+    <div id="js-flash-container">
+</div>
+
+
+
+  <div role="main" class="application-main ">
+        <div itemscope itemtype="http://schema.org/SoftwareSourceCode" class="">
+    <div id="js-repo-pjax-container" data-pjax-container >
+      
+
+
+
+
+  
+
+
+
+  <div class="pagehead repohead instapaper_ignore readability-menu experiment-repo-nav  ">
+    <div class="repohead-details-container clearfix container">
+
+      <ul class="pagehead-actions">
+  <li>
+      <a href="/login?return_to=%2FABCrom-Xiaomi%2Fabc_kernel_xiaomi_msm8998"
+    class="btn btn-sm btn-with-count tooltipped tooltipped-n"
+    aria-label="You must be signed in to watch a repository" rel="nofollow">
+    <svg class="octicon octicon-eye" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M8.06 2C3 2 0 8 0 8s3 6 8.06 6C13 14 16 8 16 8s-3-6-7.94-6zM8 12c-2.2 0-4-1.78-4-4 0-2.2 1.8-4 4-4 2.22 0 4 1.8 4 4 0 2.22-1.78 4-4 4zm2-4c0 1.11-.89 2-2 2-1.11 0-2-.89-2-2 0-1.11.89-2 2-2 1.11 0 2 .89 2 2z"/></svg>
+    Watch
+  </a>
+  <a class="social-count" href="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/watchers"
+     aria-label="1 user is watching this repository">
+    1
+  </a>
+
+  </li>
+
+  <li>
+      <a href="/login?return_to=%2FABCrom-Xiaomi%2Fabc_kernel_xiaomi_msm8998"
+    class="btn btn-sm btn-with-count tooltipped tooltipped-n"
+    aria-label="You must be signed in to star a repository" rel="nofollow">
+    <svg class="octicon octicon-star" viewBox="0 0 14 16" version="1.1" width="14" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M14 6l-4.9-.64L7 1 4.9 5.36 0 6l3.6 3.26L2.67 14 7 11.67 11.33 14l-.93-4.74z"/></svg>
+    Star
+  </a>
+
+    <a class="social-count js-social-count" href="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/stargazers"
+      aria-label="0 users starred this repository">
+      0
+    </a>
+
+  </li>
+
+  <li>
+      <a href="/login?return_to=%2FABCrom-Xiaomi%2Fabc_kernel_xiaomi_msm8998"
+        class="btn btn-sm btn-with-count tooltipped tooltipped-n"
+        aria-label="You must be signed in to fork a repository" rel="nofollow">
+        <svg class="octicon octicon-repo-forked" viewBox="0 0 10 16" version="1.1" width="10" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M8 1a1.993 1.993 0 0 0-1 3.72V6L5 8 3 6V4.72A1.993 1.993 0 0 0 2 1a1.993 1.993 0 0 0-1 3.72V6.5l3 3v1.78A1.993 1.993 0 0 0 5 15a1.993 1.993 0 0 0 1-3.72V9.5l3-3V4.72A1.993 1.993 0 0 0 8 1zM2 4.2C1.34 4.2.8 3.65.8 3c0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2 0 .65-.55 1.2-1.2 1.2zm3 10c-.66 0-1.2-.55-1.2-1.2 0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2 0 .65-.55 1.2-1.2 1.2zm3-10c-.66 0-1.2-.55-1.2-1.2 0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2 0 .65-.55 1.2-1.2 1.2z"/></svg>
+        Fork
+      </a>
+
+    <a href="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/network" class="social-count"
+       aria-label="2 users forked this repository">
+      2
+    </a>
+  </li>
+</ul>
+
+      <h1 class="public ">
+  <svg class="octicon octicon-repo" viewBox="0 0 12 16" version="1.1" width="12" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M4 9H3V8h1v1zm0-3H3v1h1V6zm0-2H3v1h1V4zm0-2H3v1h1V2zm8-1v12c0 .55-.45 1-1 1H6v2l-1.5-1.5L3 16v-2H1c-.55 0-1-.45-1-1V1c0-.55.45-1 1-1h10c.55 0 1 .45 1 1zm-1 10H1v2h2v-1h3v1h5v-2zm0-10H2v9h9V1z"/></svg>
+  <span class="author" itemprop="author"><a class="url fn" rel="author" href="/ABCrom-Xiaomi">ABCrom-Xiaomi</a></span><!--
+--><span class="path-divider">/</span><!--
+--><strong itemprop="name"><a data-pjax="#js-repo-pjax-container" href="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998">abc_kernel_xiaomi_msm8998</a></strong>
+
+</h1>
+
+    </div>
+    
+<nav class="reponav js-repo-nav js-sidenav-container-pjax container"
+     itemscope
+     itemtype="http://schema.org/BreadcrumbList"
+     role="navigation"
+     data-pjax="#js-repo-pjax-container">
+
+  <span itemscope itemtype="http://schema.org/ListItem" itemprop="itemListElement">
+    <a class="js-selected-navigation-item selected reponav-item" itemprop="url" data-hotkey="g c" data-selected-links="repo_source repo_downloads repo_commits repo_releases repo_tags repo_branches repo_packages /ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998" href="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998">
+      <svg class="octicon octicon-code" viewBox="0 0 14 16" version="1.1" width="14" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M9.5 3L8 4.5 11.5 8 8 11.5 9.5 13 14 8 9.5 3zm-5 0L0 8l4.5 5L6 11.5 2.5 8 6 4.5 4.5 3z"/></svg>
+      <span itemprop="name">Code</span>
+      <meta itemprop="position" content="1">
+</a>  </span>
+
+    <span itemscope itemtype="http://schema.org/ListItem" itemprop="itemListElement">
+      <a itemprop="url" data-hotkey="g i" class="js-selected-navigation-item reponav-item" data-selected-links="repo_issues repo_labels repo_milestones /ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/issues" href="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/issues">
+        <svg class="octicon octicon-issue-opened" viewBox="0 0 14 16" version="1.1" width="14" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M7 2.3c3.14 0 5.7 2.56 5.7 5.7s-2.56 5.7-5.7 5.7A5.71 5.71 0 0 1 1.3 8c0-3.14 2.56-5.7 5.7-5.7zM7 1C3.14 1 0 4.14 0 8s3.14 7 7 7 7-3.14 7-7-3.14-7-7-7zm1 3H6v5h2V4zm0 6H6v2h2v-2z"/></svg>
+        <span itemprop="name">Issues</span>
+        <span class="Counter">0</span>
+        <meta itemprop="position" content="2">
+</a>    </span>
+
+  <span itemscope itemtype="http://schema.org/ListItem" itemprop="itemListElement">
+    <a data-hotkey="g p" itemprop="url" class="js-selected-navigation-item reponav-item" data-selected-links="repo_pulls checks /ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/pulls" href="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/pulls">
+      <svg class="octicon octicon-git-pull-request" viewBox="0 0 12 16" version="1.1" width="12" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M11 11.28V5c-.03-.78-.34-1.47-.94-2.06C9.46 2.35 8.78 2.03 8 2H7V0L4 3l3 3V4h1c.27.02.48.11.69.31.21.2.3.42.31.69v6.28A1.993 1.993 0 0 0 10 15a1.993 1.993 0 0 0 1-3.72zm-1 2.92c-.66 0-1.2-.55-1.2-1.2 0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2 0 .65-.55 1.2-1.2 1.2zM4 3c0-1.11-.89-2-2-2a1.993 1.993 0 0 0-1 3.72v6.56A1.993 1.993 0 0 0 2 15a1.993 1.993 0 0 0 1-3.72V4.72c.59-.34 1-.98 1-1.72zm-.8 10c0 .66-.55 1.2-1.2 1.2-.65 0-1.2-.55-1.2-1.2 0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2zM2 4.2C1.34 4.2.8 3.65.8 3c0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2 0 .65-.55 1.2-1.2 1.2z"/></svg>
+      <span itemprop="name">Pull requests</span>
+      <span class="Counter">0</span>
+      <meta itemprop="position" content="3">
+</a>  </span>
+
+    <a data-hotkey="g b" class="js-selected-navigation-item reponav-item" data-selected-links="repo_projects new_repo_project repo_project /ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/projects" href="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/projects">
+      <svg class="octicon octicon-project" viewBox="0 0 15 16" version="1.1" width="15" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M10 12h3V2h-3v10zm-4-2h3V2H6v8zm-4 4h3V2H2v12zm-1 1h13V1H1v14zM14 0H1a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1z"/></svg>
+      Projects
+      <span class="Counter" >0</span>
+</a>
+
+
+  <a class="js-selected-navigation-item reponav-item" data-selected-links="repo_graphs repo_contributors dependency_graph pulse /ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/pulse" href="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/pulse">
+    <svg class="octicon octicon-graph" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M16 14v1H0V0h1v14h15zM5 13H3V8h2v5zm4 0H7V3h2v10zm4 0h-2V6h2v7z"/></svg>
+    Insights
+</a>
+
+</nav>
+
+
+  </div>
+
+<div class="container new-discussion-timeline experiment-repo-nav  ">
+  <div class="repository-content ">
+
+    
+  <a href="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/commit/6076ed501af8ba98e921a39073add6c2b2ea48c9" class="d-none js-permalink-shortcut" data-hotkey="y">Permalink</a>
+
+
+  
+
+  
+<div class="commit full-commit px-2 pt-2 ">
+  <a href="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/tree/6076ed501af8ba98e921a39073add6c2b2ea48c9" class="btn btn-outline float-right" title="Browse the repository at this point in the history" rel="nofollow">Browse files</a>
+
+    <p class="commit-title">
+      msm-core: disable userspace access to poll_ms
+    </p>
+
+    <div class="commit-desc"><pre>perfd on OxygenOS writes 0 to poll_ms, which is definitely not intended
+
+Signed-off-by: Park Ju Hyung &lt;qkrwngud825@gmail.com&gt;
+Signed-off-by: Nathan Chancellor &lt;natechancellor@gmail.com&gt;</pre></div>
+
+  <div class="commit-branches">
+  <include-fragment src="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/branch_commits/6076ed501af8ba98e921a39073add6c2b2ea48c9">
+    <svg class="octicon octicon-git-branch" viewBox="0 0 10 16" version="1.1" width="10" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M10 5c0-1.11-.89-2-2-2a1.993 1.993 0 0 0-1 3.72v.3c-.02.52-.23.98-.63 1.38-.4.4-.86.61-1.38.63-.83.02-1.48.16-2 .45V4.72a1.993 1.993 0 0 0-1-3.72C.88 1 0 1.89 0 3a2 2 0 0 0 1 1.72v6.56c-.59.35-1 .99-1 1.72 0 1.11.89 2 2 2 1.11 0 2-.89 2-2 0-.53-.2-1-.53-1.36.09-.06.48-.41.59-.47.25-.11.56-.17.94-.17 1.05-.05 1.95-.45 2.75-1.25S8.95 7.77 9 6.73h-.02C9.59 6.37 10 5.73 10 5zM2 1.8c.66 0 1.2.55 1.2 1.2 0 .65-.55 1.2-1.2 1.2C1.35 4.2.8 3.65.8 3c0-.65.55-1.2 1.2-1.2zm0 12.41c-.66 0-1.2-.55-1.2-1.2 0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2 0 .65-.55 1.2-1.2 1.2zm6-8c-.66 0-1.2-.55-1.2-1.2 0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2 0 .65-.55 1.2-1.2 1.2z"/></svg>
+    <ul class="branches-list">
+      <li class="loading">Loading branch information<span class="animated-ellipsis-container"><span class="animated-ellipsis">...</span></span></li>
+    </ul>
+</include-fragment></div>
+
+
+  <div class="commit-meta clearfix p-2 no-wrap d-flex flex-items-center">
+    
+<div class="AvatarStack flex-self-start AvatarStack--two">
+  <div class="AvatarStack-body" aria-label="arter97 and wight554 (non-author committer)">
+
+        <a class="avatar" data-skip-pjax="true" data-hovercard-user-id="5400990" data-octo-click="hovercard-link-click" data-octo-dimensions="link_type:self" href="/arter97">
+          <img height="20" width="20" alt="@arter97" src="https://avatars2.githubusercontent.com/u/5400990?s=60&amp;v=4" />
+</a>
+        <a class="avatar" data-skip-pjax="true" data-hovercard-user-id="26501410" data-octo-click="hovercard-link-click" data-octo-dimensions="link_type:self" href="/wight554">
+          <img height="20" width="20" alt="@wight554" src="https://avatars0.githubusercontent.com/u/26501410?s=60&amp;v=4" />
+</a>  </div>
+</div>
+
+    <div class="flex-auto">
+      
+      <a href="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/commits?author=arter97"
+     class="commit-author tooltipped tooltipped-s user-mention"
+     aria-label="View all commits by arter97">arter97</a>
+
+
+  authored and   <a href="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/commits?author=wight554"
+     class="commit-author tooltipped tooltipped-s user-mention"
+     aria-label="View all commits by wight554">wight554</a>
+
+  committed
+  <relative-time datetime="2018-01-01T22:30:30Z">Jan 1, 2018</relative-time>
+
+      
+
+    </div>
+    <div>
+      <span class="sha-block" data-pjax>
+        1 parent
+          
+          <a class="sha" data-hotkey="p" href="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/commit/c303f057a92e64478f0ba5f3c76e764ab1491f33">c303f05</a>
+      </span>
+      <span class="sha-block">commit <span class="sha user-select-contain">6076ed501af8ba98e921a39073add6c2b2ea48c9</span></span>
+    </div>
+  </div>
+</div>
+
+
+
+
+      <a name="diff-stat"></a>
+      <div id="toc" class="details-collapse table-of-contents js-details-container Details">
+  <div class="BtnGroup float-right" data-ga-load="Diff, view, Viewed Unified Diff">
+  <a class="btn btn-sm selected BtnGroup-item" href="https://github.com/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/commit/6076ed501af8ba98e921a39073add6c2b2ea48c9?diff=unified">
+    Unified
+  </a>
+  <a class="btn btn-sm BtnGroup-item" href="https://github.com/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/commit/6076ed501af8ba98e921a39073add6c2b2ea48c9?diff=split">
+    Split
+  </a>
+</div>
+
+
+  <div class="toc-diff-stats">
+    <svg class="octicon octicon-diff" viewBox="0 0 13 16" version="1.1" width="13" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M6 7h2v1H6v2H5V8H3V7h2V5h1v2zm-3 6h5v-1H3v1zM7.5 2L11 5.5V15c0 .55-.45 1-1 1H1c-.55 0-1-.45-1-1V3c0-.55.45-1 1-1h6.5zM10 6L7 3H1v12h9V6zM8.5 0H3v1h5l4 4v8h1V4.5L8.5 0z"/></svg>
+    Showing
+    <button type="button" class="btn-link js-details-target" aria-expanded="false">
+      1 changed file
+    </button>
+    with
+    <strong>4 additions</strong>
+    and <strong>3 deletions</strong>.
+  </div>
+
+  <ol class="content collapse js-transitionable">
+    <li>
+      <span class="diffstat float-right">
+          <span class="text-green">
+            +4
+          </span>
+          <span class="text-red">
+            −3
+          </span>
+          <a href="#diff-2846e7affb1d252b00f31cc0b3062cb0" class="tooltipped tooltipped-s" aria-label="7 lines changed">
+            <span class="block-diff-added"></span><span class="block-diff-added"></span><span class="block-diff-deleted"></span><span class="block-diff-deleted"></span><span class="block-diff-neutral"></span>
+          </a>
+      </span>
+      <svg title="modified" class="octicon octicon-diff-modified" viewBox="0 0 14 16" version="1.1" width="14" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M13 1H1c-.55 0-1 .45-1 1v12c0 .55.45 1 1 1h12c.55 0 1-.45 1-1V2c0-.55-.45-1-1-1zm0 13H1V2h12v12zM4 8c0-1.66 1.34-3 3-3s3 1.34 3 3-1.34 3-3 3-3-1.34-3-3z"/></svg>
+      <a href="#diff-2846e7affb1d252b00f31cc0b3062cb0">drivers/power/qcom/msm-core.c</a>
+    </li>
+  </ol>
+</div>
+
+    <div id="files" class="diff-view ">
+
+  <div class="js-diff-progressive-container">
+    
+<a name="diff-2846e7affb1d252b00f31cc0b3062cb0"></a>
+<div id="diff-0"
+     class="file js-file js-details-container Details
+             
+             
+             
+             
+             
+              show-inline-notes
+           ">
+  <div class="file-header js-file-header" data-path="drivers/power/qcom/msm-core.c" data-short-path="2846e7a" data-anchor="diff-2846e7affb1d252b00f31cc0b3062cb0">
+    <div class="file-actions">
+
+        <span class="show-file-notes pt-1">
+          <label>
+            <input type="checkbox" checked="checked" class="js-toggle-file-notes">
+            Show comments
+          </label>
+        </span>
+
+          <a href="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/blob/6076ed501af8ba98e921a39073add6c2b2ea48c9/drivers/power/qcom/msm-core.c" class="btn btn-sm tooltipped tooltipped-nw" rel="nofollow" aria-label="View the whole file at version 6076ed5 ">View</a>
+
+
+      <button type="button" class="btn-octicon p-1 pr-2 js-details-target" aria-label="Toggle diff text" aria-expanded="true">
+        <svg class="octicon octicon-chevron-down Details-content--shown" viewBox="0 0 10 16" version="1.1" width="10" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M5 11L0 6l1.5-1.5L5 8.25 8.5 4.5 10 6z"/></svg>
+        <svg class="octicon octicon-chevron-up Details-content--hidden" viewBox="0 0 10 16" version="1.1" width="10" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M10 10l-1.5 1.5L5 7.75 1.5 11.5 0 10l5-5z"/></svg>
+      </button>
+    </div>
+    <div class="file-info">
+        <span class="diffstat tooltipped tooltipped-e" aria-label="4 additions &amp; 3 deletions">7 <span class="block-diff-added"></span><span class="block-diff-added"></span><span class="block-diff-deleted"></span><span class="block-diff-deleted"></span><span class="block-diff-neutral"></span></span>
+
+      <a href="#diff-2846e7affb1d252b00f31cc0b3062cb0" class="link-gray-dark"
+         title="drivers/power/qcom/msm-core.c">drivers/power/qcom/msm-core.c</a>
+
+      
+    </div>
+  </div>
+  <div class="js-file-content Details-content--shown">
+
+        <div class="data highlight blob-wrapper">
+          <table class="diff-table tab-size  " data-tab-size="8">
+            
+      <tr class="js-expandable-line" data-position="0">
+    <td class="blob-num blob-num-expandable" colspan="2">
+      <a href="#diff-2846e7affb1d252b00f31cc0b3062cb0"
+            class="diff-expander js-expand" title="Expand" aria-label="Expand"
+            data-url="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/blob_excerpt/3142067114ece23af2fd81245e9d9dc2eceb7ece?diff=unified&amp;in_wiki_context=&amp;left_hunk_size=11&amp;mode=100644&amp;next_line_num_left=112&amp;next_line_num_right=112&amp;path=drivers%2Fpower%2Fqcom%2Fmsm-core.c&amp;prev_line_num_left=&amp;prev_line_num_right=&amp;right_hunk_size=12"
+            data-left-range="1-111" data-right-range="1-111">
+        <svg class="octicon octicon-unfold" viewBox="0 0 14 16" version="1.1" width="14" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M11.5 7.5L14 10c0 .55-.45 1-1 1H9v-1h3.5l-2-2h-7l-2 2H5v1H1c-.55 0-1-.45-1-1l2.5-2.5L0 5c0-.55.45-1 1-1h4v1H1.5l2 2h7l2-2H9V4h4c.55 0 1 .45 1 1l-2.5 2.5zM6 6h2V3h2L7 0 4 3h2v3zm2 3H6v3H4l3 3 3-3H8V9z"/></svg>
+      </a>
+    </td>
+    <td class="blob-code blob-code-inner blob-code-hunk">@@ -112,11 +112,12 @@ static struct cpu_pwr_stats cpu_stats[NR_CPUS];</td>
+  </tr>
+
+    <tr>
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0L112" data-line-number="112"
+        class="blob-num blob-num-context js-linkable-line-number"></td>
+
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0R112" data-line-number="112"
+        class="blob-num blob-num-context js-linkable-line-number"></td>
+
+  <td class="blob-code blob-code-context">
+
+    <span class="blob-code-inner"> <span class="pl-k">static</span> <span class="pl-c1">uint32_t</span> scaling_factor;</span>
+
+  </td>
+</tr>
+
+
+
+    <tr>
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0L113" data-line-number="113"
+        class="blob-num blob-num-context js-linkable-line-number"></td>
+
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0R113" data-line-number="113"
+        class="blob-num blob-num-context js-linkable-line-number"></td>
+
+  <td class="blob-code blob-code-context">
+
+    <span class="blob-code-inner"> <span class="pl-en">ALLOCATE_2D_ARRAY</span>(<span class="pl-c1">uint32_t</span>);</span>
+
+  </td>
+</tr>
+
+
+
+    <tr>
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0L114" data-line-number="114"
+        class="blob-num blob-num-context js-linkable-line-number"></td>
+
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0R114" data-line-number="114"
+        class="blob-num blob-num-context js-linkable-line-number"></td>
+
+  <td class="blob-code blob-code-context">
+
+    <span class="blob-code-inner"> </span>
+
+  </td>
+</tr>
+
+
+
+    <tr>
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0L115" data-line-number="115"
+        class="blob-num blob-num-deletion js-linkable-line-number"></td>
+
+    <td class="blob-num blob-num-deletion empty-cell"></td>
+
+  <td class="blob-code blob-code-deletion">
+
+    <span class="blob-code-inner">-<span class="pl-k">static</span> <span class="pl-k">int</span> poll_ms;</span>
+
+  </td>
+</tr>
+
+
+
+    <tr>
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0L116" data-line-number="116"
+        class="blob-num blob-num-deletion js-linkable-line-number"></td>
+
+    <td class="blob-num blob-num-deletion empty-cell"></td>
+
+  <td class="blob-code blob-code-deletion">
+
+    <span class="blob-code-inner">-<span class="pl-en">module_param_named</span>(polling_interval, poll_ms, <span class="pl-k">int</span>,</span>
+
+  </td>
+</tr>
+
+
+
+    <tr>
+    <td class="blob-num blob-num-addition empty-cell"></td>
+
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0R115" data-line-number="115"
+        class="blob-num blob-num-addition js-linkable-line-number"></td>
+
+  <td class="blob-code blob-code-addition">
+
+    <span class="blob-code-inner">+<span class="pl-k">static</span> __read_mostly <span class="pl-k">int</span> poll_ms;</span>
+
+  </td>
+</tr>
+
+
+
+    <tr>
+    <td class="blob-num blob-num-addition empty-cell"></td>
+
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0R116" data-line-number="116"
+        class="blob-num blob-num-addition js-linkable-line-number"></td>
+
+  <td class="blob-code blob-code-addition">
+
+    <span class="blob-code-inner">+<span class="pl-k">static</span> __read_mostly <span class="pl-k">int</span> poll_ms_dummy;</span>
+
+  </td>
+</tr>
+
+
+
+    <tr>
+    <td class="blob-num blob-num-addition empty-cell"></td>
+
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0R117" data-line-number="117"
+        class="blob-num blob-num-addition js-linkable-line-number"></td>
+
+  <td class="blob-code blob-code-addition">
+
+    <span class="blob-code-inner">+<span class="pl-en">module_param_named</span>(polling_interval, poll_ms_dummy, <span class="pl-k">int</span>,</span>
+
+  </td>
+</tr>
+
+
+
+    <tr>
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0L117" data-line-number="117"
+        class="blob-num blob-num-context js-linkable-line-number"></td>
+
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0R118" data-line-number="118"
+        class="blob-num blob-num-context js-linkable-line-number"></td>
+
+  <td class="blob-code blob-code-context">
+
+    <span class="blob-code-inner"> 		S_IRUGO | S_IWUSR | S_IWGRP);</span>
+
+  </td>
+</tr>
+
+
+
+    <tr>
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0L118" data-line-number="118"
+        class="blob-num blob-num-context js-linkable-line-number"></td>
+
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0R119" data-line-number="119"
+        class="blob-num blob-num-context js-linkable-line-number"></td>
+
+  <td class="blob-code blob-code-context">
+
+    <span class="blob-code-inner"> </span>
+
+  </td>
+</tr>
+
+
+
+    <tr>
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0L119" data-line-number="119"
+        class="blob-num blob-num-deletion js-linkable-line-number"></td>
+
+    <td class="blob-num blob-num-deletion empty-cell"></td>
+
+  <td class="blob-code blob-code-deletion">
+
+    <span class="blob-code-inner">-<span class="pl-k">static</span> <span class="pl-k">int</span> disabled;</span>
+
+  </td>
+</tr>
+
+
+
+    <tr>
+    <td class="blob-num blob-num-addition empty-cell"></td>
+
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0R120" data-line-number="120"
+        class="blob-num blob-num-addition js-linkable-line-number"></td>
+
+  <td class="blob-code blob-code-addition">
+
+    <span class="blob-code-inner">+<span class="pl-k">static</span> <span class="x x-first x-last">__read_mostly </span><span class="pl-k">int</span> disabled;</span>
+
+  </td>
+</tr>
+
+
+
+    <tr>
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0L120" data-line-number="120"
+        class="blob-num blob-num-context js-linkable-line-number"></td>
+
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0R121" data-line-number="121"
+        class="blob-num blob-num-context js-linkable-line-number"></td>
+
+  <td class="blob-code blob-code-context">
+
+    <span class="blob-code-inner"> <span class="pl-en">module_param_named</span>(disabled, disabled, <span class="pl-k">int</span>,</span>
+
+  </td>
+</tr>
+
+
+
+    <tr>
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0L121" data-line-number="121"
+        class="blob-num blob-num-context js-linkable-line-number"></td>
+
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0R122" data-line-number="122"
+        class="blob-num blob-num-context js-linkable-line-number"></td>
+
+  <td class="blob-code blob-code-context">
+
+    <span class="blob-code-inner"> 		S_IRUGO | S_IWUSR | S_IWGRP);</span>
+
+  </td>
+</tr>
+
+
+
+    <tr>
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0L122" data-line-number="122"
+        class="blob-num blob-num-context js-linkable-line-number"></td>
+
+    <td id="diff-2846e7affb1d252b00f31cc0b3062cb0R123" data-line-number="123"
+        class="blob-num blob-num-context js-linkable-line-number"></td>
+
+  <td class="blob-code blob-code-context">
+
+    <span class="blob-code-inner"> <span class="pl-k">static</span> <span class="pl-k">bool</span> in_suspend;</span>
+
+  </td>
+</tr>
+
+
+
+  <tr class="js-expandable-line">
+   <td class="blob-num blob-num-expandable" colspan="2">
+     <a href="#diff-2846e7affb1d252b00f31cc0b3062cb0"
+          class="diff-expander js-expand" title="Expand" aria-label="Expand"
+          data-url="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/blob_excerpt/3142067114ece23af2fd81245e9d9dc2eceb7ece?diff=unified&amp;in_wiki_context=&amp;mode=100644&amp;path=drivers%2Fpower%2Fqcom%2Fmsm-core.c&amp;prev_line_num_left=122&amp;prev_line_num_right=123"
+          data-left-range="123-1138"
+          data-right-range="124-1138">
+       <svg class="octicon octicon-unfold" viewBox="0 0 14 16" version="1.1" width="14" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M11.5 7.5L14 10c0 .55-.45 1-1 1H9v-1h3.5l-2-2h-7l-2 2H5v1H1c-.55 0-1-.45-1-1l2.5-2.5L0 5c0-.55.45-1 1-1h4v1H1.5l2 2h7l2-2H9V4h4c.55 0 1 .45 1 1l-2.5 2.5zM6 6h2V3h2L7 0 4 3h2v3zm2 3H6v3H4l3 3 3-3H8V9z"/></svg>
+     </a>
+   </td>
+   <td class="blob-code blob-code-expandable"></td>
+  </tr>
+
+          </table>
+        </div>
+
+  </div>
+</div>
+
+  </div>
+
+</div>
+
+<button type="button" class="js-toggle-all-file-notes" data-hotkey="i" style="display:none">Toggle all file notes</button>
+
+<svg aria-hidden="true" width="340px" height="84px" viewBox="0 0 340 84" version="1.1"
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+  class="diff-placeholder-svg position-absolute bottom-0">
+  <defs>
+    <clippath id="diff-placeholder">
+      <rect x="0" y="0" width="67.0175439" height="11.9298746" rx="2"></rect>
+      <rect x="18.9473684" y="47.7194983" width="100.701754" height="11.9298746" rx="2"></rect>
+      <rect x="0" y="71.930126" width="37.8947368" height="11.9298746" rx="2"></rect>
+      <rect x="127.017544" y="48.0703769" width="53.3333333" height="11.9298746" rx="2"></rect>
+      <rect x="187.719298" y="48.0703769" width="72.9824561" height="11.9298746" rx="2"></rect>
+      <rect x="76.8421053" y="0" width="140.350877" height="11.9298746" rx="2"></rect>
+      <rect x="17.8947368" y="23.8597491" width="140.350877" height="11.9298746" rx="2"></rect>
+      <rect x="166.315789" y="23.8597491" width="173.684211" height="11.9298746" rx="2"></rect>
+    </clippath>
+
+    <linearGradient id="animated-diff-gradient" x1="0" x2="0" y1="0" y2="1" spreadMethod="reflect">
+      <stop offset="0" stop-color="#eee"></stop>
+      <stop offset="0.2" stop-color="#eee"></stop>
+      <stop offset="0.5" stop-color="#ddd"></stop>
+      <stop offset="0.8" stop-color="#eee"></stop>
+      <stop offset="1" stop-color="#eee"></stop>
+      <animateTransform attributeName="y1" values="0%; 100%; 0" dur="1s" repeatCount="3"></animateTransform>
+      <animateTransform attributeName="y2" values="100%; 200%; 0" dur="1s" repeatCount="3"></animateTransform>
+    </linearGradient>
+  </defs>
+</svg>
+
+
+
+  <div id="all_commit_comments" class="js-quote-selection-container ">
+
+    <div class="commit-comments-heading">
+      
+<div id="partial-visible-comments-header">
+  <span class="float-right">
+    
+  </span>
+
+  <h4 class="commit-comment-count">
+    0 comments
+    on commit <code class="commit-sha">6076ed5</code>
+  </h4>
+
+</div>
+
+    </div>
+
+    <div id="comments" class="comment-holder">
+      
+
+
+  <!-- Rendered timeline since 2018-04-22 02:46:34 -->
+  <div id="partial-timeline-marker"
+        class="js-timeline-marker js-socket-channel js-updatable-content"
+        data-channel="repo:127319808:commit:6076ed501af8ba98e921a39073add6c2b2ea48c9"
+        data-url="/ABCrom-Xiaomi/abc_kernel_xiaomi_msm8998/commit/6076ed501af8ba98e921a39073add6c2b2ea48c9/show_partial?partial=commit%2Ftimeline_marker&amp;since=1524390394"
+        data-last-modified="Sun, 22 Apr 2018 09:46:34 GMT">
+
+  </div>
+
+    </div>
+
+    
+
+      Please <a rel="nofollow" href="/login?return_to=https%3A%2F%2Fgithub.com%2FABCrom-Xiaomi%2Fabc_kernel_xiaomi_msm8998%2Fcommit%2F6076ed501af8ba98e921a39073add6c2b2ea48c9">sign in</a> to comment.
+
+  </div>
+
+
+  </div>
+  <div class="modal-backdrop js-touch-events"></div>
+</div>
+
+    </div>
+  </div>
+
+  </div>
+
+      
+<div class="footer container-lg px-3" role="contentinfo">
+  <div class="position-relative d-flex flex-justify-between pt-6 pb-2 mt-6 f6 text-gray border-top border-gray-light ">
+    <ul class="list-style-none d-flex flex-wrap ">
+      <li class="mr-3">&copy; 2018 <span title="0.39907s from unicorn-1429478752-wnr1m">GitHub</span>, Inc.</li>
+        <li class="mr-3"><a data-ga-click="Footer, go to terms, text:terms" href="https://github.com/site/terms">Terms</a></li>
+        <li class="mr-3"><a data-ga-click="Footer, go to privacy, text:privacy" href="https://github.com/site/privacy">Privacy</a></li>
+        <li class="mr-3"><a href="https://help.github.com/articles/github-security/" data-ga-click="Footer, go to security, text:security">Security</a></li>
+        <li class="mr-3"><a href="https://status.github.com/" data-ga-click="Footer, go to status, text:status">Status</a></li>
+        <li><a data-ga-click="Footer, go to help, text:help" href="https://help.github.com">Help</a></li>
+    </ul>
+
+    <a aria-label="Homepage" title="GitHub" class="footer-octicon" href="https://github.com">
+      <svg height="24" class="octicon octicon-mark-github" viewBox="0 0 16 16" version="1.1" width="24" aria-hidden="true"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+</a>
+   <ul class="list-style-none d-flex flex-wrap ">
+        <li class="mr-3"><a data-ga-click="Footer, go to contact, text:contact" href="https://github.com/contact">Contact GitHub</a></li>
+      <li class="mr-3"><a href="https://developer.github.com" data-ga-click="Footer, go to api, text:api">API</a></li>
+      <li class="mr-3"><a href="https://training.github.com" data-ga-click="Footer, go to training, text:training">Training</a></li>
+      <li class="mr-3"><a href="https://shop.github.com" data-ga-click="Footer, go to shop, text:shop">Shop</a></li>
+        <li class="mr-3"><a href="https://blog.github.com" data-ga-click="Footer, go to blog, text:blog">Blog</a></li>
+        <li><a data-ga-click="Footer, go to about, text:about" href="https://github.com/about">About</a></li>
+
+    </ul>
+  </div>
+  <div class="d-flex flex-justify-center pb-6">
+    <span class="f6 text-gray-light"></span>
+  </div>
+</div>
+
+
+
+  <div id="ajax-error-message" class="ajax-error-message flash flash-error">
+    <svg class="octicon octicon-alert" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M8.865 1.52c-.18-.31-.51-.5-.87-.5s-.69.19-.87.5L.275 13.5c-.18.31-.18.69 0 1 .19.31.52.5.87.5h13.7c.36 0 .69-.19.86-.5.17-.31.18-.69.01-1L8.865 1.52zM8.995 13h-2v-2h2v2zm0-3h-2V6h2v4z"/></svg>
+    <button type="button" class="flash-close js-ajax-error-dismiss" aria-label="Dismiss error">
+      <svg class="octicon octicon-x" viewBox="0 0 12 16" version="1.1" width="12" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M7.48 8l3.75 3.75-1.48 1.48L6 9.48l-3.75 3.75-1.48-1.48L4.52 8 .77 4.25l1.48-1.48L6 6.52l3.75-3.75 1.48 1.48z"/></svg>
+    </button>
+    You can’t perform that action at this time.
+  </div>
+
+
+    <script crossorigin="anonymous" type="application/javascript" src="https://assets-cdn.github.com/assets/compat-8e5db19dd0f30433798e3cb0118e654c.js"></script>
+    <script crossorigin="anonymous" type="application/javascript" src="https://assets-cdn.github.com/assets/frameworks-cae483278a9c7126c25f62f25f2cfb95.js"></script>
+    
+    <script crossorigin="anonymous" async="async" type="application/javascript" src="https://assets-cdn.github.com/assets/github-dea53a441a0d30d1d86626e99f9f7872.js"></script>
+    
+    
+    
+    
+  <div class="js-stale-session-flash stale-session-flash flash flash-warn flash-banner d-none">
+    <svg class="octicon octicon-alert" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M8.865 1.52c-.18-.31-.51-.5-.87-.5s-.69.19-.87.5L.275 13.5c-.18.31-.18.69 0 1 .19.31.52.5.87.5h13.7c.36 0 .69-.19.86-.5.17-.31.18-.69.01-1L8.865 1.52zM8.995 13h-2v-2h2v2zm0-3h-2V6h2v4z"/></svg>
+    <span class="signed-in-tab-flash">You signed in with another tab or window. <a href="">Reload</a> to refresh your session.</span>
+    <span class="signed-out-tab-flash">You signed out in another tab or window. <a href="">Reload</a> to refresh your session.</span>
+  </div>
+  <div class="facebox" id="facebox" style="display:none;">
+  <div class="facebox-popup">
+    <div class="facebox-content" role="dialog" aria-labelledby="facebox-header" aria-describedby="facebox-description">
+    </div>
+    <button type="button" class="facebox-close js-facebox-close" aria-label="Close modal">
+      <svg class="octicon octicon-x" viewBox="0 0 12 16" version="1.1" width="12" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M7.48 8l3.75 3.75-1.48 1.48L6 9.48l-3.75 3.75-1.48-1.48L4.52 8 .77 4.25l1.48-1.48L6 6.52l3.75-3.75 1.48 1.48z"/></svg>
+    </button>
+  </div>
+</div>
+
+  <div class="Popover js-hovercard-content position-absolute" style="display: none; outline: none;" tabindex="0">
+  <div class="Popover-message Popover-message--bottom-left Popover-message--large Box box-shadow-large" style="width:360px;">
+  </div>
+</div>
+
+<div id="hovercard-aria-description" class="sr-only">
+  Press h to open a hovercard with more details.
+</div>
+
+
+  </body>
+</html>
+
