@@ -3774,18 +3774,18 @@ static int synaptics_rmi4_probe(struct platform_device *pdev)
 
 	rmi4_data->irq = gpio_to_irq(bdata->irq_gpio);
 
+	if (!exp_data.initialized) {
+		mutex_init(&exp_data.mutex);
+		INIT_LIST_HEAD(&exp_data.list);
+		exp_data.initialized = true;
+	}
+
 	retval = synaptics_rmi4_irq_enable(rmi4_data, true);
 	if (retval < 0) {
 		dev_err(&pdev->dev,
 				"%s: Failed to enable attention interrupt\n",
 				__func__);
 		goto err_enable_irq;
-	}
-
-	if (!exp_data.initialized) {
-		mutex_init(&exp_data.mutex);
-		INIT_LIST_HEAD(&exp_data.list);
-		exp_data.initialized = true;
 	}
 
 	exp_data.workqueue = create_singlethread_workqueue("dsx_exp_workqueue");
