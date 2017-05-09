@@ -1687,8 +1687,12 @@ static int fastrpc_init_process(struct fastrpc_file *fl,
 			int pageslen;
 		} inbuf;
 		VERIFY(err, proc_name = kzalloc(init->filelen, GFP_KERNEL));
+		if (err)
+			goto bail;
 		VERIFY(err, 0 == copy_from_user(proc_name,
 			(unsigned char *)init->file, init->filelen));
+		if (err)
+			goto bail;
 		inbuf.pgid = current->tgid;
 		inbuf.namelen = strlen(proc_name)+1;
 		inbuf.pageslen = 0;
