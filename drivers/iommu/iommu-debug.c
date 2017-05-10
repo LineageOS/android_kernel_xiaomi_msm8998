@@ -72,6 +72,8 @@ static const char *iommu_debug_attr_to_string(enum iommu_attr attr)
 		return "DOMAIN_ATTR_FAST";
 	case DOMAIN_ATTR_EARLY_MAP:
 		return "DOMAIN_ATTR_EARLY_MAP";
+	case DOMAIN_ATTR_CB_STALL_DISABLE:
+		return "DOMAIN_ATTR_CB_STALL_DISABLE";
 	default:
 		return "Unknown attr!";
 	}
@@ -787,9 +789,13 @@ static int iommu_debug_profiling_fast_show(struct seq_file *s, void *ignored)
 	enum iommu_attr attrs[] = {
 		DOMAIN_ATTR_FAST,
 		DOMAIN_ATTR_ATOMIC,
+		DOMAIN_ATTR_GEOMETRY,
 	};
 	int one = 1;
-	void *attr_values[] = { &one, &one, &one };
+	struct iommu_domain_geometry geometry = {0, 0, 0};
+	void *attr_values[] = { &one, &one, &geometry};
+
+	geometry.aperture_end = (dma_addr_t)(SZ_1G * 4ULL - 1);
 
 	iommu_debug_device_profiling(s, ddev->dev, attrs, attr_values,
 				     ARRAY_SIZE(attrs), sizes);

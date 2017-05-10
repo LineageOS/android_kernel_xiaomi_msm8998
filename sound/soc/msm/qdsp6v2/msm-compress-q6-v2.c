@@ -42,8 +42,6 @@
 #include <sound/compress_offload.h>
 #include <sound/compress_driver.h>
 #include <sound/msm-audio-effects-q6-v2.h>
-#include <sound/msm-dts-eagle.h>
-
 #include "msm-pcm-routing-v2.h"
 #include "msm-qti-pp-config.h"
 
@@ -79,15 +77,6 @@ const DECLARE_TLV_DB_LINEAR(msm_compr_vol_gain, 0,
 #define STREAM_ARRAY_INDEX(stream_id) (stream_id - 1)
 
 #define MAX_NUMBER_OF_STREAMS 2
-
-/*
- * Max size for getting DTS EAGLE Param through kcontrol
- * Safe for both 32 and 64 bit platforms
- * 64 = size of kcontrol value array on 64 bit platform
- * 4 = size of parameters Eagle expects before cast to 64 bits
- * 40 = size of dts_eagle_param_desc + module_id cast to 64 bits
- */
-#define DTS_EAGLE_MAX_PARAM_SIZE_FOR_ALSA ((64 * 4) - 40)
 
 struct msm_compr_gapless_state {
 	bool set_next_stream_id;
@@ -187,7 +176,7 @@ struct msm_compr_audio {
 
 const u32 compr_codecs[] = {
 	SND_AUDIOCODEC_AC3, SND_AUDIOCODEC_EAC3, SND_AUDIOCODEC_DTS,
-	SND_AUDIOCODEC_DSD};
+	SND_AUDIOCODEC_DSD, SND_AUDIOCODEC_TRUEHD};
 
 struct query_audio_effect {
 	uint32_t mod_id;
@@ -378,11 +367,6 @@ static int msm_compr_set_volume(struct snd_compr_stream *cstream,
 	if (rc < 0)
 		pr_err("%s: Send vol gain command failed rc=%d\n",
 		       __func__, rc);
-	else
-		if (msm_dts_eagle_set_stream_gain(prtd->audio_client,
-						volume_l, volume_r))
-			pr_debug("%s: DTS_EAGLE send stream gain failed\n",
-				__func__);
 
 	return rc;
 }
@@ -904,7 +888,7 @@ static void populate_codec_list(struct msm_compr_audio *prtd)
 			COMPR_PLAYBACK_MIN_NUM_FRAGMENTS;
 	prtd->compr_cap.max_fragments =
 			COMPR_PLAYBACK_MAX_NUM_FRAGMENTS;
-	prtd->compr_cap.num_codecs = 15;
+	prtd->compr_cap.num_codecs = 16;
 	prtd->compr_cap.codecs[0] = SND_AUDIOCODEC_MP3;
 	prtd->compr_cap.codecs[1] = SND_AUDIOCODEC_AAC;
 	prtd->compr_cap.codecs[2] = SND_AUDIOCODEC_AC3;
@@ -920,6 +904,7 @@ static void populate_codec_list(struct msm_compr_audio *prtd)
 	prtd->compr_cap.codecs[12] = SND_AUDIOCODEC_DTS;
 	prtd->compr_cap.codecs[13] = SND_AUDIOCODEC_DSD;
 	prtd->compr_cap.codecs[14] = SND_AUDIOCODEC_APTX;
+	prtd->compr_cap.codecs[15] = SND_AUDIOCODEC_TRUEHD;
 }
 
 static int msm_compr_send_media_format_block(struct snd_compr_stream *cstream,
@@ -1174,6 +1159,10 @@ static int msm_compr_send_media_format_block(struct snd_compr_stream *cstream,
 			pr_err("%s: CMD DSD Format block failed ret %d\n",
 				__func__, ret);
 		break;
+	case FORMAT_TRUEHD:
+		pr_debug("SND_AUDIOCODEC_TRUEHD\n");
+		/* no media format block needed */
+		break;
 	case FORMAT_APTX:
 		pr_debug("SND_AUDIOCODEC_APTX\n");
 		memset(&aptx_cfg, 0x0, sizeof(struct aptx_dec_bt_addr_cfg));
@@ -1210,26 +1199,6 @@ static int msm_compr_init_pp_params(struct snd_compr_stream *cstream,
 	};
 
 	switch (ac->topology) {
-	case ASM_STREAM_POSTPROC_TOPO_ID_HPX_PLUS: /* HPX + SA+ topology */
-
-		ret = q6asm_set_softvolume_v2(ac, &softvol,
-					      SOFT_VOLUME_INSTANCE_1);
-		if (ret < 0)
-			pr_err("%s: Send SoftVolume Param failed ret=%d\n",
-			__func__, ret);
-
-		ret = q6asm_set_softvolume_v2(ac, &softvol,
-					      SOFT_VOLUME_INSTANCE_2);
-		if (ret < 0)
-			pr_err("%s: Send SoftVolume2 Param failed ret=%d\n",
-			__func__, ret);
-		/*
-		 * HPX module init is trigerred from HAL using ioctl
-		 * DTS_EAGLE_MODULE_ENABLE when stream starts
-		 */
-		break;
-	case ASM_STREAM_POSTPROC_TOPO_ID_DTS_HPX: /* HPX topology */
-		break;
 	default:
 		ret = q6asm_set_softvolume_v2(ac, &softvol,
 					      SOFT_VOLUME_INSTANCE_1);
@@ -1969,6 +1938,12 @@ static int msm_compr_set_params(struct snd_compr_stream *cstream,
 	case SND_AUDIOCODEC_DSD: {
 		pr_debug("%s: SND_AUDIOCODEC_DSD\n", __func__);
 		prtd->codec = FORMAT_DSD;
+		break;
+	}
+
+	case SND_AUDIOCODEC_TRUEHD: {
+		pr_debug("%s: SND_AUDIOCODEC_TRUEHD\n", __func__);
+		prtd->codec = FORMAT_TRUEHD;
 		break;
 	}
 
@@ -2836,20 +2811,14 @@ static int msm_compr_get_codec_caps(struct snd_compr_stream *cstream,
 				SND_AUDIOSTREAMFORMAT_RAW);
 		break;
 	case SND_AUDIOCODEC_AC3:
-		break;
 	case SND_AUDIOCODEC_EAC3:
-		break;
 	case SND_AUDIOCODEC_FLAC:
-		break;
 	case SND_AUDIOCODEC_VORBIS:
-		break;
 	case SND_AUDIOCODEC_ALAC:
-		break;
 	case SND_AUDIOCODEC_APE:
-		break;
 	case SND_AUDIOCODEC_DTS:
-		break;
 	case SND_AUDIOCODEC_DSD:
+	case SND_AUDIOCODEC_TRUEHD:
 	case SND_AUDIOCODEC_APTX:
 		break;
 	default:
@@ -3128,23 +3097,6 @@ static int msm_compr_audio_effects_config_put(struct snd_kcontrol *kcontrol,
 						    &(audio_effects->equalizer),
 						     values);
 		break;
-	case DTS_EAGLE_MODULE:
-		pr_debug("%s: DTS_EAGLE_MODULE\n", __func__);
-		if (!msm_audio_effects_is_effmodule_supp_in_top(effects_module,
-						prtd->audio_client->topology))
-			return 0;
-		msm_dts_eagle_handle_asm(NULL, (void *)values, true,
-					 false, prtd->audio_client, NULL);
-		break;
-	case DTS_EAGLE_MODULE_ENABLE:
-		pr_debug("%s: DTS_EAGLE_MODULE_ENABLE\n", __func__);
-		if (msm_audio_effects_is_effmodule_supp_in_top(effects_module,
-						prtd->audio_client->topology))
-			msm_dts_eagle_enable_asm(prtd->audio_client,
-					(bool)values[0],
-					AUDPROC_MODULE_ID_DTS_HPX_PREMIX);
-
-		break;
 	case SOFT_VOLUME_MODULE:
 		pr_debug("%s: SOFT_VOLUME_MODULE\n", __func__);
 		break;
@@ -3173,7 +3125,6 @@ static int msm_compr_audio_effects_config_get(struct snd_kcontrol *kcontrol,
 	struct msm_compr_audio_effects *audio_effects = NULL;
 	struct snd_compr_stream *cstream = NULL;
 	struct msm_compr_audio *prtd = NULL;
-	long *values = &(ucontrol->value.integer.value[0]);
 
 	pr_debug("%s\n", __func__);
 	if (fe_id >= MSM_FRONTEND_DAI_MAX) {
@@ -3193,28 +3144,6 @@ static int msm_compr_audio_effects_config_get(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
-	switch (audio_effects->query.mod_id) {
-	case DTS_EAGLE_MODULE:
-		pr_debug("%s: DTS_EAGLE_MODULE handling queued get\n",
-			 __func__);
-		values[0] = (long)audio_effects->query.mod_id;
-		values[1] = (long)audio_effects->query.parm_id;
-		values[2] = (long)audio_effects->query.size;
-		values[3] = (long)audio_effects->query.offset;
-		values[4] = (long)audio_effects->query.device;
-		if (values[2] > DTS_EAGLE_MAX_PARAM_SIZE_FOR_ALSA) {
-			pr_err("%s: DTS_EAGLE_MODULE parameter's requested size (%li) too large (max size is %i)\n",
-				__func__, values[2],
-				DTS_EAGLE_MAX_PARAM_SIZE_FOR_ALSA);
-			return -EINVAL;
-		}
-		msm_dts_eagle_handle_asm(NULL, (void *)&values[1],
-					 true, true, prtd->audio_client, NULL);
-		break;
-	default:
-		pr_err("%s: Invalid effects config module\n", __func__);
-		return -EINVAL;
-	}
 	return 0;
 }
 
@@ -3318,6 +3247,7 @@ static int msm_compr_send_dec_params(struct snd_compr_stream *cstream,
 	switch (prtd->codec) {
 	case FORMAT_MP3:
 	case FORMAT_MPEG4_AAC:
+	case FORMAT_TRUEHD:
 	case FORMAT_APTX:
 		pr_debug("%s: no runtime parameters for codec: %d\n", __func__,
 			 prtd->codec);
@@ -3385,6 +3315,7 @@ static int msm_compr_dec_params_put(struct snd_kcontrol *kcontrol,
 	case FORMAT_APE:
 	case FORMAT_DTS:
 	case FORMAT_DSD:
+	case FORMAT_TRUEHD:
 	case FORMAT_APTX:
 		pr_debug("%s: no runtime parameters for codec: %d\n", __func__,
 			 prtd->codec);

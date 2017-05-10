@@ -228,9 +228,10 @@ static int32_t msm_isp_stats_buf_divert(struct vfe_device *vfe_dev,
 		done_buf->buf_idx;
 
 	stats_event->pd_stats_idx = 0xF;
-	if (stream_info->stats_type == MSM_ISP_STATS_BF)
+	if (stream_info->stats_type == MSM_ISP_STATS_BF) {
 		stats_event->pd_stats_idx = vfe_dev->pd_buf_idx;
-
+		vfe_dev->pd_buf_idx = 0xF;
+	}
 	if (comp_stats_type_mask == NULL) {
 		stats_event->stats_mask =
 			1 << stream_info->stats_type;
@@ -765,7 +766,7 @@ void msm_isp_process_stats_reg_upd_epoch_irq(struct vfe_device *vfe_dev,
 			spin_unlock_irqrestore(&stream_info->lock, flags);
 			if (-EFAULT == rc) {
 				msm_isp_halt_send_error(vfe_dev,
-						ISP_EVENT_BUF_FATAL_ERROR);
+						ISP_EVENT_PING_PONG_MISMATCH);
 				return;
 			}
 			continue;

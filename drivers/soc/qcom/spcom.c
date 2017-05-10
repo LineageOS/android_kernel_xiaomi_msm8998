@@ -463,8 +463,7 @@ static void spcom_notify_state(void *handle, const void *priv, unsigned event)
 	switch (event) {
 	case GLINK_CONNECTED:
 		pr_debug("GLINK_CONNECTED, ch name [%s].\n", ch->name);
-		complete_all(&ch->connect);
-
+		ch->glink_state = event;
 		/*
 		 * if spcom_notify_state() is called within glink_open()
 		 * then ch->glink_handle is not updated yet.
@@ -484,6 +483,7 @@ static void spcom_notify_state(void *handle, const void *priv, unsigned event)
 				 ch->rx_buf_size);
 			ch->rx_buf_ready = true;
 		}
+		complete_all(&ch->connect);
 		break;
 	case GLINK_LOCAL_DISCONNECTED:
 		/*
@@ -491,6 +491,7 @@ static void spcom_notify_state(void *handle, const void *priv, unsigned event)
 		 * only after *both* sides closed the channel.
 		 */
 		pr_debug("GLINK_LOCAL_DISCONNECTED, ch [%s].\n", ch->name);
+		ch->glink_state = event;
 		complete_all(&ch->disconnect);
 		break;
 	case GLINK_REMOTE_DISCONNECTED:
@@ -500,6 +501,8 @@ static void spcom_notify_state(void *handle, const void *priv, unsigned event)
 		 * This may happen upon remote SSR.
 		 */
 		pr_err("GLINK_REMOTE_DISCONNECTED, ch [%s].\n", ch->name);
+
+		ch->glink_state = event;
 
 		/*
 		 * Abort any blocking read() operation.
@@ -518,8 +521,6 @@ static void spcom_notify_state(void *handle, const void *priv, unsigned event)
 		       (int) event, ch->name);
 		return;
 	}
-
-	ch->glink_state = event;
 }
 
 /**
@@ -1723,12 +1724,16 @@ static int spcom_handle_lock_ion_buf_command(struct spcom_channel *ch,
 
 	pr_debug("ion handle ok.\n");
 
+	/* ION buf lock doesn't involve any rx/tx data to SP. */
+	mutex_lock(&ch->lock);
+
 	/* Check if this ION buffer is already locked */
 	for (i = 0 ; i < ARRAY_SIZE(ch->ion_handle_table) ; i++) {
 		if (ch->ion_handle_table[i] == ion_handle) {
 			pr_err("fd [%d] ion buf is already locked.\n", fd);
 			/* decrement back the ref count */
 			ion_free(spcom_dev->ion_client, ion_handle);
+			mutex_unlock(&ch->lock);
 			return -EINVAL;
 		}
 	}
@@ -1740,6 +1745,7 @@ static int spcom_handle_lock_ion_buf_command(struct spcom_channel *ch,
 			ch->ion_fd_table[i] = fd;
 			pr_debug("ch [%s] locked ion buf #%d, fd [%d].\n",
 				ch->name, i, fd);
+			mutex_unlock(&ch->lock);
 			return 0;
 		}
 	}
@@ -1747,6 +1753,8 @@ static int spcom_handle_lock_ion_buf_command(struct spcom_channel *ch,
 	pr_err("no free entry to store ion handle of fd [%d].\n", fd);
 	/* decrement back the ref count */
 	ion_free(spcom_dev->ion_client, ion_handle);
+
+	mutex_unlock(&ch->lock);
 
 	return -EFAULT;
 }
@@ -1826,7 +1834,12 @@ static int spcom_handle_unlock_ion_buf_command(struct spcom_channel *ch,
 		return -EINVAL;
 	}
 
+	/* ION buf unlock doesn't involve any rx/tx data to SP. */
+	mutex_lock(&ch->lock);
+
 	ret = spcom_unlock_ion_buf(ch, fd);
+
+	mutex_unlock(&ch->lock);
 
 	return ret;
 }
@@ -2132,7 +2145,6 @@ static int spcom_device_release(struct inode *inode, struct file *filp)
 {
 	struct spcom_channel *ch;
 	const char *name = file_to_filename(filp);
-	bool connected = false;
 
 	pr_debug("Close file [%s].\n", name);
 
@@ -2154,19 +2166,18 @@ static int spcom_device_release(struct inode *inode, struct file *filp)
 	}
 
 	/* channel might be already closed or disconnected */
-	if (spcom_is_channel_open(ch) && spcom_is_channel_connected(ch))
-		connected = true;
+	if (!spcom_is_channel_open(ch)) {
+		pr_err("ch [%s] already closed.\n", name);
+		return 0;
+	}
 
 	reinit_completion(&ch->disconnect);
 
 	spcom_close(ch);
 
-	if (connected) {
-		pr_debug("Wait for event GLINK_LOCAL_DISCONNECTED, ch [%s].\n",
-			 name);
-		wait_for_completion(&ch->disconnect);
-		pr_debug("GLINK_LOCAL_DISCONNECTED signaled, ch [%s].\n", name);
-	}
+	pr_debug("Wait for event GLINK_LOCAL_DISCONNECTED, ch [%s].\n", name);
+	wait_for_completion(&ch->disconnect);
+	pr_debug("GLINK_LOCAL_DISCONNECTED signaled, ch [%s].\n", name);
 
 	return 0;
 }
