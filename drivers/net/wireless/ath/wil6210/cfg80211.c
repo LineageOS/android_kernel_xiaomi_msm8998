@@ -1650,12 +1650,6 @@ static int wil_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	enum wmi_ps_profile_type ps_profile;
-	int rc;
-
-	if (!test_bit(WMI_FW_CAPABILITY_PS_CONFIG, wil->fw_capabilities)) {
-		wil_err(wil, "set_power_mgmt not supported\n");
-		return -EOPNOTSUPP;
-	}
 
 	wil_dbg_misc(wil, "enabled=%d, timeout=%d\n",
 		     enabled, timeout);
@@ -1665,11 +1659,43 @@ static int wil_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 	else
 		ps_profile = WMI_PS_PROFILE_TYPE_PS_DISABLED;
 
-	rc  = wmi_ps_dev_profile_cfg(wil, ps_profile);
-	if (rc)
-		wil_err(wil, "wmi_ps_dev_profile_cfg failed (%d)\n", rc);
+	return wil_ps_update(wil, ps_profile);
+}
 
+static int wil_cfg80211_suspend(struct wiphy *wiphy,
+				struct cfg80211_wowlan *wow)
+{
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	int rc;
+
+	/* Setting the wakeup trigger based on wow is TBD */
+
+	if (test_bit(wil_status_suspended, wil->status)) {
+		wil_dbg_pm(wil, "trying to suspend while suspended\n");
+		return 0;
+	}
+
+	rc = wil_can_suspend(wil, false);
+	if (rc)
+		goto out;
+
+	wil_dbg_pm(wil, "suspending\n");
+
+	wil_p2p_stop_discovery(wil);
+
+	wil_abort_scan(wil, true);
+
+out:
 	return rc;
+}
+
+static int wil_cfg80211_resume(struct wiphy *wiphy)
+{
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+
+	wil_dbg_pm(wil, "resuming\n");
+
+	return 0;
 }
 
 static struct cfg80211_ops wil_cfg80211_ops = {
@@ -1703,6 +1729,8 @@ static struct cfg80211_ops wil_cfg80211_ops = {
 	.start_p2p_device = wil_cfg80211_start_p2p_device,
 	.stop_p2p_device = wil_cfg80211_stop_p2p_device,
 	.set_power_mgmt = wil_cfg80211_set_power_mgmt,
+	.suspend = wil_cfg80211_suspend,
+	.resume = wil_cfg80211_resume,
 };
 
 static void wil_wiphy_init(struct wiphy *wiphy)
