@@ -33,6 +33,7 @@ extern unsigned short rx_ring_overflow_thrsh;
 extern int agg_wsize;
 extern u32 vring_idle_trsh;
 extern bool rx_align_2;
+extern bool rx_large_buf;
 extern bool debug_fw;
 extern bool disable_ap_sme;
 
@@ -81,6 +82,15 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
  *  4 bytes - CRC
  */
 #define WIL_MAX_MPDU_OVERHEAD	(62)
+
+struct wil_suspend_stats {
+	unsigned long successful_suspends;
+	unsigned long failed_suspends;
+	unsigned long successful_resumes;
+	unsigned long failed_resumes;
+	unsigned long rejected_by_device;
+	unsigned long rejected_by_host;
+};
 
 /* Calculate MAC buffer size for the firmware. It includes all overhead,
  * as it will go over the air, and need to be 8 byte aligned
@@ -295,6 +305,8 @@ enum {
 #define ISR_MISC_MBOX_EVT	BIT_DMA_EP_MISC_ICR_FW_INT(1)
 #define ISR_MISC_FW_ERROR	BIT_DMA_EP_MISC_ICR_FW_INT(3)
 
+#define WIL_DATA_COMPLETION_TO_MS 200
+
 /* Hardware definitions end */
 struct fw_map {
 	u32 from; /* linker address - from, inclusive */
@@ -423,7 +435,9 @@ enum { /* for wil6210_priv.status */
 	wil_status_irqen, /* FIXME: interrupts enabled - for debug */
 	wil_status_napi_en, /* NAPI enabled protected by wil->mutex */
 	wil_status_resetting, /* reset in progress */
+	wil_status_suspending, /* suspend in progress */
 	wil_status_suspended, /* suspend completed, device is suspended */
+	wil_status_resuming, /* resume in progress */
 	wil_status_last /* keep last */
 };
 
@@ -670,6 +684,7 @@ struct wil6210_priv {
 	struct work_struct probe_client_worker;
 	/* DMA related */
 	struct vring vring_rx;
+	unsigned int rx_buf_len;
 	struct vring vring_tx[WIL6210_MAX_TX_RINGS];
 	struct vring_tx_data vring_tx_data[WIL6210_MAX_TX_RINGS];
 	u8 vring2cid_tid[WIL6210_MAX_TX_RINGS][2]; /* [0] - CID, [1] - TID */
@@ -687,9 +702,12 @@ struct wil6210_priv {
 	struct wil_blob_wrapper blobs[ARRAY_SIZE(fw_mapping)];
 	u8 discovery_mode;
 	u8 abft_len;
+	u8 wakeup_trigger;
+	struct wil_suspend_stats suspend_stats;
 
 	void *platform_handle;
 	struct wil_platform_ops platform_ops;
+	bool keep_radio_on_during_sleep;
 
 	struct pmc_ctx pmc;
 
@@ -705,6 +723,8 @@ struct wil6210_priv {
 	/* High Access Latency Policy voting */
 	struct wil_halp halp;
 
+	enum wmi_ps_profile_type ps_profile;
+
 	struct wil_ftm_priv ftm;
 	bool tt_data_set;
 	struct wmi_tt_data tt_data;
@@ -714,6 +734,11 @@ struct wil6210_priv {
 	struct notifier_block pm_notify;
 #endif /* CONFIG_PM_SLEEP */
 #endif /* CONFIG_PM */
+
+	bool suspend_resp_rcvd;
+	bool suspend_resp_comp;
+	u32 bus_request_kbps;
+	u32 bus_request_kbps_pre_suspend;
 };
 
 #define wil_to_wiphy(i) (i->wdev->wiphy)
@@ -824,6 +849,8 @@ int wil_if_add(struct wil6210_priv *wil);
 void wil_if_remove(struct wil6210_priv *wil);
 int wil_priv_init(struct wil6210_priv *wil);
 void wil_priv_deinit(struct wil6210_priv *wil);
+int wil_ps_update(struct wil6210_priv *wil,
+		  enum wmi_ps_profile_type ps_profile);
 int wil_reset(struct wil6210_priv *wil, bool no_fw);
 void wil_fw_error_recovery(struct wil6210_priv *wil);
 void wil_set_recovery_state(struct wil6210_priv *wil, int state);
@@ -974,6 +1001,11 @@ bool wil_fw_verify_file_exists(struct wil6210_priv *wil, const char *name);
 int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime);
 int wil_suspend(struct wil6210_priv *wil, bool is_runtime);
 int wil_resume(struct wil6210_priv *wil, bool is_runtime);
+bool wil_is_wmi_idle(struct wil6210_priv *wil);
+int wmi_resume(struct wil6210_priv *wil);
+int wmi_suspend(struct wil6210_priv *wil);
+bool wil_is_tx_idle(struct wil6210_priv *wil);
+bool wil_is_rx_idle(struct wil6210_priv *wil);
 
 int wil_fw_copy_crash_dump(struct wil6210_priv *wil, void *dest, u32 size);
 void wil_fw_core_dump(struct wil6210_priv *wil);
