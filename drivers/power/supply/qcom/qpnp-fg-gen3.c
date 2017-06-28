@@ -491,7 +491,7 @@ static void fg_encode_default(struct fg_sram_param *sp,
 	int i, mask = 0xff;
 	int64_t temp;
 
-	temp = DIV_ROUND_CLOSEST(val * sp[id].numrtr, sp[id].denmtr);
+	temp = (int64_t)div_s64((s64)val * sp[id].numrtr, sp[id].denmtr);
 	pr_debug("temp: %llx id: %d, val: %d, buf: [ ", temp, id, val);
 	for (i = 0; i < sp[id].len; i++) {
 		buf[i] = temp & mask;
@@ -1320,9 +1320,16 @@ static int fg_cap_learning_process_full_data(struct fg_chip *chip)
 		return rc;
 	}
 
-	cc_soc_delta_pct = DIV_ROUND_CLOSEST(
-				abs(cc_soc_sw - chip->cl.init_cc_soc_sw) * 100,
-				CC_SOC_30BIT);
+	cc_soc_delta_pct =
+		div64_s64((int64_t)(cc_soc_sw - chip->cl.init_cc_soc_sw) * 100,
+			CC_SOC_30BIT);
+
+	/* If the delta is < 50%, then skip processing full data */
+	if (cc_soc_delta_pct < 50) {
+		pr_err("cc_soc_delta_pct: %d\n", cc_soc_delta_pct);
+		return -ERANGE;
+	}
+
 	delta_cc_uah = div64_s64(chip->cl.learned_cc_uah * cc_soc_delta_pct,
 				100);
 	chip->cl.final_cc_uah = chip->cl.init_cc_uah + delta_cc_uah;
@@ -1392,10 +1399,10 @@ out:
 	return rc;
 }
 
-#define FULL_SOC_RAW	255
 static void fg_cap_learning_update(struct fg_chip *chip)
 {
 	int rc, batt_soc, batt_soc_msb;
+	bool input_present = is_input_present(chip);
 
 	mutex_lock(&chip->cl.lock);
 
@@ -1436,11 +1443,29 @@ static void fg_cap_learning_update(struct fg_chip *chip)
 			chip->cl.init_cc_uah = 0;
 		}
 
+		if (chip->charge_status == POWER_SUPPLY_STATUS_DISCHARGING) {
+			if (!input_present) {
+				fg_dbg(chip, FG_CAP_LEARN, "Capacity learning aborted @ battery SOC %d\n",
+					 batt_soc_msb);
+				chip->cl.active = false;
+				chip->cl.init_cc_uah = 0;
+			}
+		}
+
 		if (chip->charge_status == POWER_SUPPLY_STATUS_NOT_CHARGING) {
-			fg_dbg(chip, FG_CAP_LEARN, "Capacity learning aborted @ battery SOC %d\n",
-				batt_soc_msb);
-			chip->cl.active = false;
-			chip->cl.init_cc_uah = 0;
+			if (is_qnovo_en(chip) && input_present) {
+				/*
+				 * Don't abort the capacity learning when qnovo
+				 * is enabled and input is present where the
+				 * charging status can go to "not charging"
+				 * intermittently.
+				 */
+			} else {
+				fg_dbg(chip, FG_CAP_LEARN, "Capacity learning aborted @ battery SOC %d\n",
+					batt_soc_msb);
+				chip->cl.active = false;
+				chip->cl.init_cc_uah = 0;
+			}
 		}
 	}
 
@@ -1975,7 +2000,7 @@ static int fg_esr_fcc_config(struct fg_chip *chip)
 {
 	union power_supply_propval prop = {0, };
 	int rc;
-	bool parallel_en = false, qnovo_en = false;
+	bool parallel_en = false, qnovo_en;
 
 	if (is_parallel_charger_available(chip)) {
 		rc = power_supply_get_property(chip->parallel_psy,
@@ -1988,10 +2013,7 @@ static int fg_esr_fcc_config(struct fg_chip *chip)
 		parallel_en = prop.intval;
 	}
 
-	rc = power_supply_get_property(chip->batt_psy,
-			POWER_SUPPLY_PROP_CHARGE_QNOVO_ENABLE, &prop);
-	if (!rc)
-		qnovo_en = prop.intval;
+	qnovo_en = is_qnovo_en(chip);
 
 	fg_dbg(chip, FG_POWER_SUPPLY, "chg_sts: %d par_en: %d qnov_en: %d esr_fcc_ctrl_en: %d\n",
 		chip->charge_status, parallel_en, qnovo_en,
@@ -3937,7 +3959,7 @@ static int fg_parse_ki_coefficients(struct fg_chip *chip)
 }
 
 #define DEFAULT_CUTOFF_VOLT_MV		3200
-#define DEFAULT_EMPTY_VOLT_MV		2800
+#define DEFAULT_EMPTY_VOLT_MV		2850
 #define DEFAULT_RECHARGE_VOLT_MV	4250
 #define DEFAULT_CHG_TERM_CURR_MA	100
 #define DEFAULT_CHG_TERM_BASE_CURR_MA	75
@@ -4473,7 +4495,7 @@ static int fg_gen3_probe(struct platform_device *pdev)
 		disable_irq_nosync(fg_irqs[SOC_UPDATE_IRQ].irq);
 
 	/* Keep BSOC_DELTA_IRQ irq disabled until we require it */
-	rerun_election(chip->delta_bsoc_irq_en_votable);
+	vote(chip->delta_bsoc_irq_en_votable, DELTA_BSOC_IRQ_VOTER, false, 0);
 
 	rc = fg_debugfs_create(chip);
 	if (rc < 0) {
