@@ -75,6 +75,7 @@
 #include <linux/binfmts.h>
 #include <linux/context_tracking.h>
 #include <linux/compiler.h>
+#include <linux/cpufreq.h>
 #include <linux/irq.h>
 #include <linux/sched/core_ctl.h>
 
@@ -2372,6 +2373,10 @@ static void __sched_fork(unsigned long clone_flags, struct task_struct *p)
 
 #ifdef CONFIG_SCHEDSTATS
 	memset(&p->se.statistics, 0, sizeof(p->se.statistics));
+#endif
+
+#ifdef CONFIG_CPU_FREQ_STAT
+	cpufreq_task_stats_init(p);
 #endif
 
 	RB_CLEAR_NODE(&p->dl.rb_node);
