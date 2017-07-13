@@ -2639,6 +2639,7 @@ QDF_STATUS cds_register_dp_cb(struct cds_dp_cbacks *dp_cbs)
 	cds_ctx->hdd_en_lro_in_cc_cb = dp_cbs->hdd_en_lro_in_cc_cb;
 	cds_ctx->hdd_disable_lro_in_cc_cb = dp_cbs->hdd_disble_lro_in_cc_cb;
 	cds_ctx->hdd_set_rx_mode_rps_cb = dp_cbs->hdd_set_rx_mode_rps_cb;
+	cds_ctx->hdd_ipa_set_mcc_mode_cb = dp_cbs->hdd_ipa_set_mcc_mode_cb;
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -2663,6 +2664,7 @@ QDF_STATUS cds_deregister_dp_cb(void)
 	cds_ctx->hdd_en_lro_in_cc_cb = NULL;
 	cds_ctx->hdd_disable_lro_in_cc_cb = NULL;
 	cds_ctx->hdd_set_rx_mode_rps_cb = NULL;
+	cds_ctx->hdd_ipa_set_mcc_mode_cb = NULL;
 
 	return QDF_STATUS_SUCCESS;
 }
