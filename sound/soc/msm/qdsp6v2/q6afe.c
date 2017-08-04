@@ -33,6 +33,8 @@
 #endif
 
 #define WAKELOCK_TIMEOUT	5000
+#define WAIT_AFE_DATA_DRAIN	20000
+
 enum {
 	AFE_COMMON_RX_CAL = 0,
 	AFE_COMMON_TX_CAL,
@@ -5583,6 +5585,10 @@ int afe_close(int port_id)
 	} else {
 		pr_debug("%s: Not a MAD port\n", __func__);
 	}
+
+	/* give AFE time to drain all data in case of USB */
+	if (port_id == AFE_PORT_ID_USB_RX)
+		usleep_range(WAIT_AFE_DATA_DRAIN, (WAIT_AFE_DATA_DRAIN + 10));
 
 	port_index = afe_get_port_index(port_id);
 	if ((port_index >= 0) && (port_index < AFE_MAX_PORTS)) {
