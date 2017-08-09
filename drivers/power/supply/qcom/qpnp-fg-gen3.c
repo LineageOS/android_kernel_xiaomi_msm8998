@@ -2781,7 +2781,7 @@ static void sram_dump_work(struct work_struct *work)
 		quotient, remainder);
 resched:
 	queue_delayed_work(system_power_efficient_wq,
-		&chip->sram_dump_work,
+			&chip->sram_dump_work,
 			msecs_to_jiffies(fg_sram_dump_period_ms));
 }
 
@@ -2810,7 +2810,7 @@ static int fg_sram_dump_sysfs(const char *val, const struct kernel_param *kp)
 	chip = power_supply_get_drvdata(bms_psy);
 	if (fg_sram_dump)
 		queue_delayed_work(system_power_efficient_wq,
-			&chip->sram_dump_work,
+				&chip->sram_dump_work,
 				msecs_to_jiffies(fg_sram_dump_period_ms));
 	else
 		cancel_delayed_work_sync(&chip->sram_dump_work);
@@ -4993,7 +4993,7 @@ static int fg_gen3_resume(struct device *dev)
 		&chip->ttf_work, 0);
 	if (fg_sram_dump)
 		queue_delayed_work(system_power_efficient_wq,
-			&chip->sram_dump_work,
+				&chip->sram_dump_work,
 				msecs_to_jiffies(fg_sram_dump_period_ms));
 	return 0;
 }
