@@ -7967,6 +7967,7 @@ struct sir_del_all_tdls_peers {
 	uint16_t msg_type;
 	uint16_t msg_len;
 	struct qdf_mac_addr bssid;
+	bool disable_tdls_state;
 };
 
 /**
