@@ -619,11 +619,7 @@ void lim_deactivate_timers(tpAniSirGlobal mac_ctx)
 	uint32_t n;
 	tLimTimers *lim_timer = &mac_ctx->lim.limTimers;
 
-	/* Deactivate Reassociation failure timer. */
-	tx_timer_deactivate(&lim_timer->gLimReassocFailureTimer);
-
-	/* Deactivate FT Preauth response timer */
-	tx_timer_deactivate(&lim_timer->gLimFTPreAuthRspTimer);
+	lim_deactivate_timers_host_roam(mac_ctx);
 
 	/* Deactivate Periodic Probe channel timers. */
 	tx_timer_deactivate(&lim_timer->gLimPeriodicProbeReqTimer);
@@ -679,12 +675,6 @@ void lim_deactivate_timers(tpAniSirGlobal mac_ctx)
 
 	tx_timer_deactivate(&lim_timer->gLimDeauthAckTimer);
 
-	/* Deactivate Reassociation failure timer. */
-	tx_timer_deactivate(&lim_timer->gLimReassocFailureTimer);
-
-	/* Deactivate FT Preauth response timer */
-	tx_timer_deactivate(&lim_timer->gLimFTPreAuthRspTimer);
-
 	tx_timer_deactivate(&lim_timer->
 			gLimP2pSingleShotNoaInsertTimer);
 
@@ -716,9 +706,9 @@ void lim_cleanup_mlm(tpAniSirGlobal mac_ctx)
 	if (mac_ctx->lim.gLimTimersCreated == 1) {
 		lim_timer = &mac_ctx->lim.limTimers;
 
-		lim_delete_timers_host_roam(mac_ctx);
-
 		lim_deactivate_timers(mac_ctx);
+
+		lim_delete_timers_host_roam(mac_ctx);
 		/* Delete Periodic Probe channel timers. */
 		tx_timer_delete(&lim_timer->gLimPeriodicProbeReqTimer);
 
