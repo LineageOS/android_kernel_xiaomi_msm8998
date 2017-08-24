@@ -6515,6 +6515,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		pHddCtx->config->enable_dtim_1chrx);
 	hdd_debug("Name = [%s] value = [0x%x]", CFG_VC_MODE_BITMAP,
 		pHddCtx->config->vc_mode_cfg_bitmap);
+	hdd_debug("Name = [%s] value = [%u]",
+		CFG_DOT11P_MODE_NAME,
+		pHddCtx->config->dot11p_mode);
 }
 
 /**
