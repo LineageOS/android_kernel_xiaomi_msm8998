@@ -1444,7 +1444,7 @@ void csr_abort_command(tpAniSirGlobal pMac, tSmeCmd *pCommand, bool fStopping)
 			/* We need to inform the requester before dropping
 			 * the scan command
 			 */
-			sme_debug("Drop scan reason %d callback %p",
+			sme_debug("Drop scan reason %d callback %pK",
 				pCommand->u.scanCmd.reason,
 				pCommand->u.scanCmd.callback);
 			if (NULL != pCommand->u.scanCmd.callback) {
