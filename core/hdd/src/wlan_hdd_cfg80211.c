@@ -14584,7 +14584,7 @@ struct cfg80211_bss *wlan_hdd_cfg80211_inform_bss_frame(hdd_adapter_t *pAdapter,
 	}
 
 	cfg_param = pHddCtx->config;
-	mgmt = qdf_mem_malloc((sizeof(struct ieee80211_mgmt) + ie_length));
+	mgmt = qdf_mem_malloc(frame_len);
 	if (!mgmt) {
 		hdd_err("memory allocation failed");
 		return NULL;
