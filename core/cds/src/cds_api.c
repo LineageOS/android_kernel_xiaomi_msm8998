@@ -1784,7 +1784,9 @@ static QDF_STATUS cds_force_assert_target(qdf_device_t qdf_ctx)
 		  "Self Recovery not supported via Platform driver assert");
 
 	cds_set_recovery_in_progress(false);
-	QDF_BUG(0);
+
+	if (!cds_is_fw_down())
+		QDF_BUG(0);
 
 	return QDF_STATUS_E_INVAL;
 }
