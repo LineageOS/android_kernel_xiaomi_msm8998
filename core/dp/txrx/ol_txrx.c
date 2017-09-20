@@ -2379,6 +2379,8 @@ void ol_txrx_flush_cache_rx_queue(void)
 	}
 }
 
+/* Define short name to use in cds_trigger_recovery */
+#define PEER_DEL_TIMEOUT CDS_PEER_DELETION_TIMEDOUT
 
 /**
  * ol_txrx_peer_attach - Allocate and set up references for a
@@ -2486,7 +2488,7 @@ ol_txrx_peer_attach(ol_txrx_vdev_handle vdev, uint8_t *peer_mac_addr)
 			/* Added for debugging only */
 			wma_peer_debug_dump();
 			if (cds_is_self_recovery_enabled())
-				cds_trigger_recovery();
+				cds_trigger_recovery(PEER_DEL_TIMEOUT);
 			else
 				QDF_ASSERT(0);
 			vdev->wait_on_peer_id = OL_TXRX_INVALID_LOCAL_PEER_ID;
@@ -2585,6 +2587,7 @@ ol_txrx_peer_attach(ol_txrx_vdev_handle vdev, uint8_t *peer_mac_addr)
 
 	return peer;
 }
+#undef PEER_DEL_TIMEOUT
 
 /*
  * Discarding tx filter - removes all data frames (disconnected state)
@@ -3364,7 +3367,7 @@ void peer_unmap_timer_handler(void *data)
 	if (!cds_is_driver_recovering() && !cds_is_fw_down()) {
 		wma_peer_debug_dump();
 		if (cds_is_self_recovery_enabled())
-			cds_trigger_recovery();
+			cds_trigger_recovery(CDS_PEER_UNMAP_TIMEDOUT);
 		else
 			QDF_BUG(0);
 	} else {
