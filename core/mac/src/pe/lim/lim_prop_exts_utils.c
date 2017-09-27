@@ -452,6 +452,7 @@ lim_extract_ap_capability(tpAniSirGlobal mac_ctx, uint8_t *p_ie,
 	}
 
 	if (mac_ctx->roam.configParam.is_force_1x1 &&
+	    mac_ctx->lteCoexAntShare &&
 	    is_vendor_ap_present) {
 		session->supported_nss_1x1 = true;
 		session->vdev_nss = 1;
