@@ -1689,6 +1689,7 @@ wlansap_set_channel_change_with_csa(void *p_cds_gctx, uint32_t targetChannel,
 	void *hHal = NULL;
 	bool valid;
 	QDF_STATUS status;
+	bool sta_sap_scc_on_dfs_chan;
 
 	sapContext = CDS_GET_SAP_CB(p_cds_gctx);
 	if (NULL == sapContext) {
@@ -1718,6 +1719,7 @@ wlansap_set_channel_change_with_csa(void *p_cds_gctx, uint32_t targetChannel,
 		cds_is_any_mode_active_on_band_along_with_session(
 					sapContext->sessionId, CDS_BAND_5));
 
+	sta_sap_scc_on_dfs_chan = cds_is_sta_sap_scc_allowed_on_dfs_channel();
 	/*
 	 * Now, validate if the passed channel is valid in the
 	 * current regulatory domain.
@@ -1727,8 +1729,10 @@ wlansap_set_channel_change_with_csa(void *p_cds_gctx, uint32_t targetChannel,
 			CHANNEL_STATE_ENABLE) ||
 		(cds_get_channel_state(targetChannel) ==
 			CHANNEL_STATE_DFS &&
-		!cds_is_any_mode_active_on_band_along_with_session(
-			sapContext->sessionId, CDS_BAND_5)))) {
+			(!cds_is_any_mode_active_on_band_along_with_session(
+				    sapContext->sessionId, CDS_BAND_5) ||
+			 sta_sap_scc_on_dfs_chan)))) {
+
 		/*
 		 * validate target channel switch w.r.t various concurrency
 		 * rules set.
