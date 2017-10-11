@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -10,19 +10,8 @@
  * GNU General Public License for more details.
  */
 
-#include "msm8998-v2.dtsi"
-
-/ {
-	model = "Qualcomm Technologies, Inc. APQ 8098 V2";
-	qcom,msm-id = <319 0x20000>;
-};
-
-&soc {
-	qcom,rmnet-ipa {
-		status = "disabled";
-	};
-};
-
-&ipa_hw {
-	status = "disabled";
-};
+#ifndef __STEP_CHG_H__
+#define __STEP_CHG_H__
+int qcom_step_chg_init(bool, bool);
+void qcom_step_chg_deinit(void);
+#endif /* __STEP_CHG_H__ */
