@@ -103,6 +103,12 @@ static void wma_send_bcn_buf_ll(tp_wma_handle wma,
 		WMA_LOGE("%s: Invalid beacon buffer", __func__);
 		return;
 	}
+	if (WMI_UNIFIED_NOA_ATTR_NUM_DESC_GET(p2p_noa_info) >
+			WMI_P2P_MAX_NOA_DESCRIPTORS) {
+		WMA_LOGE("%s: Too many descriptors %d", __func__,
+			WMI_UNIFIED_NOA_ATTR_NUM_DESC_GET(p2p_noa_info));
+		return;
+	}
 
 	qdf_spin_lock_bh(&bcn->lock);
 
@@ -260,7 +266,9 @@ int wma_beacon_swba_handler(void *handle, uint8_t *event, uint32_t len)
 		return -EINVAL;
 	}
 
-	for (; vdev_map; vdev_id++, vdev_map >>= 1) {
+	WMA_LOGD("vdev_map = %d", vdev_map);
+	for (; vdev_map && vdev_id < wma->max_bssid;
+			vdev_id++, vdev_map >>= 1) {
 		if (!(vdev_map & 0x1))
 			continue;
 		if (!ol_cfg_is_high_latency(pdev->ctrl_pdev))
