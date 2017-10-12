@@ -92,6 +92,9 @@ struct gf_key_map maps[] = {
 #endif
 };
 
+static unsigned int report_home_events = 1;
+module_param(report_home_events, uint, S_IRUGO | S_IWUSR);
+
 static void gf_enable_irq(struct gf_dev *gf_dev)
 {
 	if (gf_dev->irq_enabled) {
@@ -320,6 +323,9 @@ static void gf_kernel_key_input(struct gf_dev *gf_dev, struct gf_key *gf_key)
 	uint32_t key_input = 0;
 
 	if (GF_KEY_HOME == gf_key->key) {
+		if (!report_home_events)
+			return;
+
 		key_input = GF_KEY_INPUT_HOME;
 	} else if (GF_KEY_POWER == gf_key->key) {
 		key_input = KEY_KPENTER;
