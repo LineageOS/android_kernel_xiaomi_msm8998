@@ -63,6 +63,7 @@
 #include "wlan_hdd_misc.h"
 #include <cds_utils.h>
 #include "pld_common.h"
+#include "wlan_hdd_regulatory.h"
 
 #include "wma.h"
 #ifdef WLAN_DEBUG
@@ -7817,6 +7818,17 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 	clear_bit(ACS_PENDING, &pHostapdAdapter->event_flags);
 	clear_bit(ACS_IN_PROGRESS, &pHddCtx->g_event_flags);
 
+	/* Mark the indoor channel (passive) to disable */
+	if (iniConfig->disable_indoor_channel) {
+		hdd_update_indoor_channel(pHddCtx, true);
+		if (QDF_IS_STATUS_ERROR(
+		    sme_update_channel_list(pHddCtx->hHal))) {
+			hdd_update_indoor_channel(pHddCtx, false);
+			hdd_err("Can't start BSS: update channel list failed");
+			return -EINVAL;
+		}
+	}
+
 	pConfig = &pHostapdAdapter->sessionCtx.ap.sapConfig;
 
 	pBeacon = pHostapdAdapter->sessionCtx.ap.beacon;
@@ -8386,6 +8398,11 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 error:
 	if (sme_config)
 		qdf_mem_free(sme_config);
+	/* Revert the indoor to passive marking if START BSS fails */
+	if (iniConfig->disable_indoor_channel) {
+		hdd_update_indoor_channel(pHddCtx, false);
+		sme_update_channel_list(pHddCtx->hHal);
+	}
 	clear_bit(SOFTAP_INIT_DONE, &pHostapdAdapter->event_flags);
 	if (pHostapdAdapter->sessionCtx.ap.sapConfig.acs_cfg.ch_list) {
 		qdf_mem_free(pHostapdAdapter->sessionCtx.ap.sapConfig.
