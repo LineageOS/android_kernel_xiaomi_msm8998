@@ -99,9 +99,12 @@ struct csiphy_reg_3ph_parms_t csiphy_v5_0_1_3ph = {
 	{0x70C, 0xA5},
 	{0x38, 0xFE},
 	{0x81c, 0x2},
+<<<<<<< HEAD
 	{0x700, 0x80},
 	{0x724, 0x04},
 	{0x024, 0x04},
+=======
+>>>>>>> 54536c8... Kernel: Xiaomi kernel changes for Xiaomi 6 and MIX 2
 };
 
 struct csiphy_settings_t csiphy_combo_mode_v5_0_1 = {
