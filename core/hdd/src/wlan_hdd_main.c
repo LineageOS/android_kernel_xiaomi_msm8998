@@ -2206,10 +2206,11 @@ static int __hdd_open(struct net_device *dev)
 		return -EBUSY;
 	}
 
-	if (!hdd_wait_for_recovery_completion()) {
-		hdd_err("Recovery failed");
-		return -EIO;
+	if (cds_is_driver_recovering()) {
+		hdd_err("WLAN is currently recovering; Please try again.");
+		return -EBUSY;
 	}
+
 	mutex_lock(&hdd_init_deinit_lock);
 
 	/*
