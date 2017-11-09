@@ -12219,7 +12219,7 @@ int wlan_hdd_cfg80211_update_band(struct wiphy *wiphy, eCsrBand eBand)
 
 	ENTER();
 
-	for (i = 0; i < NUM_NL80211_BANDS; i++) {
+	for (i = 0; i < HDD_NUM_NL80211_BANDS; i++) {
 
 		if (NULL == wiphy->bands[i])
 			continue;
@@ -12512,7 +12512,7 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 		}
 	}
 
-	for (i = 0; i < NUM_NL80211_BANDS; i++) {
+	for (i = 0; i < HDD_NUM_NL80211_BANDS; i++) {
 
 		if (NULL == wiphy->bands[i])
 			continue;
@@ -12609,7 +12609,7 @@ void wlan_hdd_cfg80211_deinit(struct wiphy *wiphy)
 {
 	int i;
 
-	for (i = 0; i < NUM_NL80211_BANDS; i++) {
+	for (i = 0; i < HDD_NUM_NL80211_BANDS; i++) {
 		if (NULL != wiphy->bands[i] &&
 		   (NULL != wiphy->bands[i]->channels)) {
 			qdf_mem_free(wiphy->bands[i]->channels);
