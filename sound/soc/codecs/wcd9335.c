@@ -4553,6 +4553,9 @@ static int tasha_codec_hphr_dac_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		if (!(strcmp(w->name, "RX INT2 DAC"))) {
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+			snd_soc_update_bits(codec, WCD9335_ANA_HPH, 0x20, 0x20);
+#endif
 			snd_soc_update_bits(codec, WCD9335_ANA_HPH, 0x10, 0x10);
 		}
 		if (tasha->anc_func) {
@@ -4593,8 +4596,12 @@ static int tasha_codec_hphr_dac_event(struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		if (!(strcmp(w->name, "RX INT2 DAC")))
+		if (!(strcmp(w->name, "RX INT2 DAC"))) {
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+			snd_soc_update_bits(codec, WCD9335_ANA_HPH, 0x20, 0x00);
+#endif
 			snd_soc_update_bits(codec, WCD9335_ANA_HPH, 0x10, 0x00);
+		}
 		if ((hph_mode == CLS_H_LP) &&
 		   (TASHA_IS_1_1(wcd9xxx))) {
 			snd_soc_update_bits(codec, WCD9335_HPH_L_DAC_CTL,
@@ -5947,6 +5954,10 @@ static int tasha_codec_enable_dec(struct snd_soc_dapm_widget *w,
 					    CF_MIN_3DB_150HZ << 5);
 		/* Enable TX PGA Mute */
 		snd_soc_update_bits(codec, tx_vol_ctl_reg, 0x10, 0x10);
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+		/* Disable APC */
+		snd_soc_update_bits(codec, dec_cfg_reg, 0x08, 0x00);
+#endif
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 		snd_soc_update_bits(codec, hpf_gate_reg, 0x01, 0x00);
