@@ -28,6 +28,10 @@
 #include <sound/adsp_err.h>
 #include <linux/qdsp6v2/apr_tal.h>
 
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+#include <sound/apr_elliptic.h>
+#endif
+
 #define WAKELOCK_TIMEOUT	5000
 enum {
 	AFE_COMMON_RX_CAL = 0,
@@ -109,6 +113,11 @@ struct afe_ctl {
 	u16 dtmf_gen_rx_portid;
 	struct audio_cal_info_spk_prot_cfg	prot_cfg;
 	struct afe_spkr_prot_calib_get_resp	calib_data;
+
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	struct afe_ultrasound_calib_get_resp	ultrasound_calib_data;
+#endif
+
 	struct audio_cal_info_sp_th_vi_ftm_cfg	th_ftm_cfg;
 	struct audio_cal_info_sp_ex_vi_ftm_cfg	ex_ftm_cfg;
 	struct afe_sp_th_vi_get_param_resp	th_vi_resp;
@@ -364,6 +373,11 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 				return -EINVAL;
 		}
 		wake_up(&this_afe.wait[data->token]);
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	} else if (data->opcode == ULTRASOUND_OPCODE) {
+		if (data->payload != NULL)
+			elliptic_process_apr_payload(data->payload);
+#endif
 	} else if (data->payload_size) {
 		uint32_t *payload;
 		uint16_t port_id = 0;
@@ -1069,6 +1083,19 @@ fail_cmd:
 	__func__, config.pdata.param_id, ret, src_port);
 	return ret;
 }
+
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+/* ELUS Begin */
+afe_ultrasound_state_t elus_afe = {
+	.ptr_apr = &this_afe.apr,
+	.ptr_status = &this_afe.status,
+	.ptr_state = &this_afe.state,
+	.ptr_wait = this_afe.wait,
+	.timeout_ms = TIMEOUT_MS,
+	.ptr_ultrasound_calib_data = &this_afe.ultrasound_calib_data
+};
+/* ELUS End */
+#endif
 
 static void afe_send_cal_spkr_prot_tx(int port_id)
 {
