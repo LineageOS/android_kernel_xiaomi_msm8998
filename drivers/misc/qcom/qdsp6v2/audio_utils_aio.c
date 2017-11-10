@@ -807,6 +807,7 @@ static long audio_aio_process_event_req(struct q6audio_aio *audio,
 {
 	long rc;
 	struct msm_audio_event usr_evt;
+	memset(&usr_evt, 0, sizeof(struct msm_audio_event));
 
 	if (copy_from_user(&usr_evt, arg, sizeof(struct msm_audio_event))) {
 		pr_err("%s: copy_from_user failed\n", __func__);
