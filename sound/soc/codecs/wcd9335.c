@@ -5945,6 +5945,10 @@ static int tasha_codec_enable_dec(struct snd_soc_dapm_widget *w,
 					    CF_MIN_3DB_150HZ << 5);
 		/* Enable TX PGA Mute */
 		snd_soc_update_bits(codec, tx_vol_ctl_reg, 0x10, 0x10);
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+		/* Disable APC */
+		snd_soc_update_bits(codec, dec_cfg_reg, 0x08, 0x00);
+#endif
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 		snd_soc_update_bits(codec, hpf_gate_reg, 0x01, 0x00);
