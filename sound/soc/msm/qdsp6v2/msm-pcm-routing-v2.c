@@ -48,6 +48,10 @@
 #include "q6voice.h"
 #include "sound/q6lsm.h"
 
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+#include "msm-elliptic.h"
+#endif
+
 #ifndef CONFIG_DOLBY_DAP
 #undef DOLBY_ADM_COPP_TOPOLOGY_ID
 #define DOLBY_ADM_COPP_TOPOLOGY_ID 0xFFFFFFFE
@@ -84,6 +88,11 @@ static bool is_custom_stereo_on;
 static bool is_ds2_on;
 static bool swap_ch;
 static int msm_native_mode;
+
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+static int voice_ext_ec_ref;
+static int voip_ext_ec_ref;
+#endif
 
 #define WEIGHT_0_DB 0x4000
 /* all the FEs which can support channel mixer */
@@ -4000,10 +4009,23 @@ static const struct snd_kcontrol_new ext_ec_ref_mux_ul29 =
 static int msm_routing_ext_ec_get(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	struct snd_soc_dapm_widget_list *wlist =
+						dapm_kcontrol_get_wlist(kcontrol);
+	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
+#endif
+
 	pr_debug("%s: ext_ec_ref_rx  = %x\n", __func__, msm_route_ext_ec_ref);
 
 	mutex_lock(&routing_lock);
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	if (!strncmp(widget->name, "VOC_EXT_EC MUX", strlen("VOC_EXT_EC MUX")))
+		ucontrol->value.integer.value[0] = voice_ext_ec_ref;
+	else
+		ucontrol->value.integer.value[0] = voip_ext_ec_ref;
+#else
 	ucontrol->value.integer.value[0] = msm_route_ext_ec_ref;
+#endif
 	mutex_unlock(&routing_lock);
 	return 0;
 }
@@ -4058,6 +4080,15 @@ static int msm_routing_ext_ec_put(struct snd_kcontrol *kcontrol,
 	pr_debug("%s: val = %d ext_ec_ref_port_id = 0x%0x state = %d\n",
 		 __func__, msm_route_ext_ec_ref, ext_ec_ref_port_id, state);
 
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	if (!strncmp(widget->name, "VOC_EXT_EC MUX", strlen("VOC_EXT_EC MUX")))
+		voice_ext_ec_ref = msm_route_ext_ec_ref;
+	else
+		voip_ext_ec_ref = msm_route_ext_ec_ref;
+
+	if (state || (!state && voice_ext_ec_ref == 0 && voip_ext_ec_ref == 0)) {
+#endif
+
 	if (!voc_set_ext_ec_ref_port_id(ext_ec_ref_port_id, state)) {
 		mutex_unlock(&routing_lock);
 		snd_soc_dapm_mux_update_power(widget->dapm, kcontrol, mux, e, update);
@@ -4065,6 +4096,13 @@ static int msm_routing_ext_ec_put(struct snd_kcontrol *kcontrol,
 		ret = -EINVAL;
 		mutex_unlock(&routing_lock);
 	}
+
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	} else {
+		mutex_unlock(&routing_lock);
+	}
+#endif
+
 	return ret;
 }
 
@@ -4081,6 +4119,11 @@ static const struct snd_kcontrol_new voc_ext_ec_mux =
 	SOC_DAPM_ENUM_EXT("VOC_EXT_EC MUX Mux", msm_route_ext_ec_ref_rx_enum[0],
 			  msm_routing_ext_ec_get, msm_routing_ext_ec_put);
 
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+static const struct snd_kcontrol_new voip_ext_ec_mux =
+	SOC_DAPM_ENUM_EXT("VOIP_EXT_EC MUX Mux", msm_route_ext_ec_ref_rx_enum[0],
+			  msm_routing_ext_ec_get, msm_routing_ext_ec_put);
+#endif
 
 static const struct snd_kcontrol_new pri_i2s_rx_mixer_controls[] = {
 	SOC_DOUBLE_EXT("MultiMedia1", SND_SOC_NOPM,
@@ -17155,6 +17198,12 @@ static const struct snd_soc_dapm_widget msm_qdsp6_widgets[] = {
 
 	SND_SOC_DAPM_MUX("VOC_EXT_EC MUX", SND_SOC_NOPM, 0, 0,
 			 &voc_ext_ec_mux),
+
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	SND_SOC_DAPM_MUX("VOIP_EXT_EC MUX", SND_SOC_NOPM, 0, 0,
+			 &voip_ext_ec_mux),
+#endif
+
 	SND_SOC_DAPM_MUX("AUDIO_REF_EC_UL1 MUX", SND_SOC_NOPM, 0, 0,
 		&ext_ec_ref_mux_ul1),
 	SND_SOC_DAPM_MUX("AUDIO_REF_EC_UL2 MUX", SND_SOC_NOPM, 0, 0,
@@ -19068,6 +19117,15 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"VOC_EXT_EC MUX", "TERT_MI2S_TX" , "TERT_MI2S_TX"},
 	{"VOC_EXT_EC MUX", "QUAT_MI2S_TX" , "QUAT_MI2S_TX"},
 	{"VOC_EXT_EC MUX", "SLIM_1_TX" ,    "SLIMBUS_1_TX"},
+
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	{"VOIP_EXT_EC MUX", "PRI_MI2S_TX" , "PRI_MI2S_TX"},
+	{"VOIP_EXT_EC MUX", "SEC_MI2S_TX" , "SEC_MI2S_TX"},
+	{"VOIP_EXT_EC MUX", "TERT_MI2S_TX" , "TERT_MI2S_TX"},
+	{"VOIP_EXT_EC MUX", "QUAT_MI2S_TX" , "QUAT_MI2S_TX"},
+	{"VOIP_EXT_EC MUX", "SLIM_1_TX" ,    "SLIMBUS_1_TX"},
+#endif
+
 	{"CS-VOICE_UL1", NULL, "VOC_EXT_EC MUX"},
 	{"VOIP_UL", NULL, "VOC_EXT_EC MUX"},
 	{"VoLTE_UL", NULL, "VOC_EXT_EC MUX"},
@@ -19075,6 +19133,16 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"VoWLAN_UL", NULL, "VOC_EXT_EC MUX"},
 	{"VOICEMMODE1_UL", NULL, "VOC_EXT_EC MUX"},
 	{"VOICEMMODE2_UL", NULL, "VOC_EXT_EC MUX"},
+
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	{"CS-VOICE_UL1", NULL, "VOIP_EXT_EC MUX"},
+	{"VOIP_UL", NULL, "VOIP_EXT_EC MUX"},
+	{"VoLTE_UL", NULL, "VOIP_EXT_EC MUX"},
+	{"VOICE2_UL", NULL, "VOIP_EXT_EC MUX"},
+	{"VoWLAN_UL", NULL, "VOIP_EXT_EC MUX"},
+	{"VOICEMMODE1_UL", NULL, "VOIP_EXT_EC MUX"},
+	{"VOICEMMODE2_UL", NULL, "VOIP_EXT_EC MUX"},
+#endif
 
 	{"AUDIO_REF_EC_UL1 MUX", "PRI_MI2S_TX" , "PRI_MI2S_TX"},
 	{"AUDIO_REF_EC_UL1 MUX", "SEC_MI2S_TX" , "SEC_MI2S_TX"},
@@ -21111,6 +21179,10 @@ static int msm_routing_probe(struct snd_soc_platform *platform)
 	snd_soc_add_platform_controls(
 		platform, msm_routing_feature_support_mixer_controls,
 		ARRAY_SIZE(msm_routing_feature_support_mixer_controls));
+
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	elliptic_add_platform_controls(platform);
+#endif
 
 	return 0;
 }
