@@ -422,13 +422,21 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 		.capture = {
 			.stream_name = "SLIMBUS1_HOSTLESS Capture",
 			.aif_name = "SLIM1_UL_HL",
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+			.rates = SNDRV_PCM_RATE_8000_192000,
+#else
 			.rates = SNDRV_PCM_RATE_8000_48000,
+#endif
 			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
 				    SNDRV_PCM_FMTBIT_S24_LE),
 			.channels_min = 1,
 			.channels_max = 2,
 			.rate_min =     8000,
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+			.rate_max =     192000,
+#else
 			.rate_max =     48000,
+#endif
 		},
 		.ops = &msm_fe_dai_ops,
 		.name = "SLIMBUS1_HOSTLESS",
