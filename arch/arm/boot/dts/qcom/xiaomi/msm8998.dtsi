@@ -1,0 +1,147 @@
+/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/delete-node/ &pil_ipa_gpu_mem;
+/delete-node/ &pil_slpi_mem;
+/delete-node/ &pil_mba_mem;
+/delete-node/ &pil_video_mem;
+/delete-node/ &modem_mem;
+/delete-node/ &pil_adsp_mem;
+
+/ {
+	reserved-memory {
+		pil_ipa_gpu_mem: pil_ipa_gpu_region@95600000 {
+			compatible = "removed-dma-pool";
+			no-map;
+			reg = <0 0x95600000 0 0x100000>;
+		};
+
+		pil_slpi_mem: pil_slpi_region@94700000 {
+			compatible = "removed-dma-pool";
+			no-map;
+			reg = <0 0x94700000 0 0xf00000>;
+		};
+
+		pil_mba_mem: pil_mba_region@94500000 {
+			compatible = "removed-dma-pool";
+			no-map;
+			reg = <0 0x94500000 0 0x200000>;
+		};
+
+		pil_video_mem: pil_video_region@94000000 {
+			compatible = "removed-dma-pool";
+			no-map;
+			reg = <0 0x94000000 0 0x500000>;
+		};
+
+		modem_mem: modem_region@8d000000 {
+			compatible = "removed-dma-pool";
+			no-map;
+			reg = <0 0x8d000000 0 0x7000000>;
+		};
+
+		pil_adsp_mem: pil_adsp_region@0x8b200000 {
+			compatible = "removed-dma-pool";
+			no-map;
+			reg = <0 0x8b200000 0 0x1e00000>;
+ 		};
+	};
+};
+
+/delete-node/ &firmware;
+
+/ {
+	firmware: firmware {
+		android {
+			compatible = "android,firmware";
+			fstab {
+				compatible = "android,fstab";
+				system {
+					compatible = "android,system";
+					dev = "/dev/block/platform/soc/1da4000.ufshc/by-name/system";
+					type = "ext4";
+					mnt_flags = "ro,barrier=1,discard";
+					fsmgr_flags = "wait,verify";
+					status = "ok";
+				};
+			};
+		};
+	};
+};
+
+&usb3 {
+	dwc3@a800000 {
+		maximum-speed = "high-speed";
+	};		
+};
+
+&soc {
+	qcom,sensor-information {
+		sensor_information28: qcom,sensor-information-28 {
+			qcom,sensor-type =  "adc";
+			qcom,sensor-name = "xo_therm";
+		};
+		sensor_information29: qcom,sensor-information-29 {
+			qcom,sensor-type = "llm";
+			qcom,sensor-name = "limits_sensor-01";
+		};
+		sensor_information30: qcom,sensor-information-30 {
+			qcom,sensor-type = "llm";
+			qcom,sensor-name = "limits_sensor-02";
+		};
+	};
+};
+
+&wdog {
+	qcom,bark-time = <20000>;
+	qcom,pet-time = <15000>;
+};
+
+&gdsc_venus {
+	clock-names = "bus_clk", "maxi_clk", "core_clk";
+	clocks = <&clock_mmss clk_mmss_video_axi_clk>,
+		<&clock_mmss clk_mmss_video_maxi_clk>,
+		<&clock_mmss clk_mmss_video_core_clk>;
+};
+
+&gdsc_venus_core0 {
+	clock-names = "core0_clk";
+	clocks = <&clock_mmss clk_mmss_video_subcore0_clk>;
+};
+
+&gdsc_venus_core1 {
+	clock-names = "core1_clk";
+	clocks = <&clock_mmss clk_mmss_video_subcore1_clk>;
+};
+
+&gdsc_camss_top {
+	clock-names = "bus_clk", "vfe_axi";
+	clocks = <&clock_mmss clk_mmss_camss_cpp_axi_clk>,
+		<&clock_mmss clk_mmss_camss_vfe_vbif_axi_clk>;
+};
+
+&gdsc_vfe0 {
+	clock-names = "core0_clk" , "core0_stream_clk";
+	clocks = <&clock_mmss clk_mmss_camss_vfe0_clk>,
+		<&clock_mmss clk_mmss_camss_vfe0_stream_clk>;
+};
+
+&gdsc_vfe1 {
+	clock-names = "core1_clk" , "core1_stream_clk";
+	clocks = <&clock_mmss clk_mmss_camss_vfe1_clk>,
+		<&clock_mmss clk_mmss_camss_vfe1_stream_clk>;
+};
+
+&gdsc_cpp {
+	clock-names = "core_clk";
+	clocks = <&clock_mmss clk_mmss_camss_cpp_clk>;
+};
