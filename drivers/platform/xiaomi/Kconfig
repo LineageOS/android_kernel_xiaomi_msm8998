@@ -1,0 +1,30 @@
+# Xiaomi configuration options
+
+config MACH_XIAOMI
+	bool "Xiaomi board"
+	depends on ARCH_QCOM
+	help
+	 Support for Xiaomi boards.
+
+config MACH_XIAOMI_MSM8998
+	bool "Xiaomi MSM8998 boards"
+	depends on ARCH_MSM8998
+	select MACH_XIAOMI
+	help
+	 Support for MSM8998 Xiaomi boards.
+
+menu "Xiaomi board selection"
+
+config MACH_SAGIT
+	bool "sagit board"
+	select MACH_XIAOMI_MSM8998
+	help
+	 Support for Xiaomi Mi6, codenamed sagit.
+
+config MACH_CHIRON
+	bool "chiron board"
+	select MACH_XIAOMI_MSM8998
+	help
+	 Support for Xiaomi Mi Mix2, codenamed chiron.
+
+endmenu
