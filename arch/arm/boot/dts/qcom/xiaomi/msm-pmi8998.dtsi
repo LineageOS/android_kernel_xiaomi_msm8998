@@ -1,0 +1,66 @@
+/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&pmi8998_gpios {
+	gpio@c400 {
+		status = "okay";
+	};
+};
+
+&pmi8998_fg {
+	qcom,fg-memif@4400 {
+		interrupts = <0x2 0x44 0x1 IRQ_TYPE_EDGE_BOTH>,
+			    <0x2 0x44 0x2 IRQ_TYPE_EDGE_BOTH>;
+		interrupt-names = "mem-xcp",
+				"dma-grant";
+	};
+};
+
+&pmi8998_pwm_2 {
+	status = "okay";
+};
+
+&red_led {
+	/delete-property/ linux,default-trigger;
+};
+
+&green_led {
+	/delete-property/ linux,default-trigger;
+};
+
+&blue_led {
+	/delete-property/ linux,default-trigger;
+};
+
+&pmi8998_wled {
+	qcom,switch-freq-khz = <600>;
+};
+
+&pmi8998_flash0 {
+	qcom,ires-ua = <13000>;
+};
+
+&pmi8998_flash1 {
+	qcom,ires-ua = <13000>;
+};
+
+&pmi8998_torch0 {
+	qcom,max-current = <200>;
+	qcom,current-ma = <75>;
+	qcom,ires-ua = <13000>;
+};
+
+&pmi8998_torch1 {
+	qcom,max-current = <200>;
+	qcom,current-ma = <75>;
+	qcom,ires-ua = <13000>;
+};
