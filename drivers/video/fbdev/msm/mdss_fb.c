@@ -5210,6 +5210,25 @@ int mdss_fb_get_phys_info(dma_addr_t *start, unsigned long *len, int fb_num)
 }
 EXPORT_SYMBOL(mdss_fb_get_phys_info);
 
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+bool mdss_panel_is_prim(void *fbinfo)
+{
+	struct msm_fb_data_type *mfd;
+	struct mdss_panel_info *pinfo;
+	struct fb_info *fbi = fbinfo;
+
+	if (!fbi)
+		return false;
+	mfd = fbi->par;
+	if (!mfd)
+		return false;
+	pinfo = mfd->panel_info;
+	if (!pinfo)
+		return false;
+	return pinfo->is_prim_panel;
+}
+#endif
+
 int __init mdss_fb_init(void)
 {
 	int rc = -ENODEV;

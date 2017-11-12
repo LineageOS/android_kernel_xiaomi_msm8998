@@ -91,6 +91,14 @@ struct dss_module_power {
 	struct dss_clk *clk_config;
 };
 
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+bool mdss_panel_is_prim(void *fbinfo);
+bool mdss_prim_panel_is_dead(void);
+void mdss_panel_reset_skip_enable(bool enable);
+void mdss_dsi_ulps_enable(bool enable);
+void mdss_dsi_ulps_suspend_enable(bool enable);
+#endif
+
 int msm_dss_ioremap_byname(struct platform_device *pdev,
 	struct dss_io_data *io_data, const char *name);
 void msm_dss_iounmap(struct dss_io_data *io_data);
