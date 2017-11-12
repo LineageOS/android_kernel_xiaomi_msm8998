@@ -68,6 +68,8 @@ struct msm_ois_ctrl_t {
 	struct msm_pinctrl_info pinctrl_info;
 	uint8_t cam_pinctrl_status;
 	struct msm_ois_board_info *oboard_info;
+	struct workqueue_struct *ois_work_queue;
+	struct work_struct ois_work;
 };
 
 #endif

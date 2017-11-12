@@ -17,6 +17,9 @@
 #include "msm_sd.h"
 #include "msm_ois.h"
 #include "msm_cci.h"
+#include "OIS_head.h"
+#include "OIS_user.c"
+#include "OIS_func.c"
 
 DEFINE_MSM_MUTEX(msm_ois_mutex);
 /*#define MSM_OIS_DEBUG*/
@@ -30,6 +33,8 @@ DEFINE_MSM_MUTEX(msm_ois_mutex);
 static struct v4l2_file_operations msm_ois_v4l2_subdev_fops;
 static int32_t msm_ois_power_up(struct msm_ois_ctrl_t *o_ctrl);
 static int32_t msm_ois_power_down(struct msm_ois_ctrl_t *o_ctrl);
+
+static void msm_ois_FW_download(struct work_struct *ois_work);
 
 static struct i2c_driver msm_ois_i2c_driver;
 
@@ -46,6 +51,8 @@ static int32_t msm_ois_download(struct msm_ois_ctrl_t *o_ctrl)
 	char name_coeff[MAX_SENSOR_NAME] = {0};
 	struct device *dev = &(o_ctrl->pdev->dev);
 	enum msm_camera_i2c_reg_addr_type save_addr_type;
+
+	return 1; /* disable ois download lib.so */
 
 	CDBG("Enter\n");
 	save_addr_type = o_ctrl->i2c_client.addr_type;
@@ -279,6 +286,10 @@ static int32_t msm_ois_power_down(struct msm_ois_ctrl_t *o_ctrl)
 	struct device_node *of_node = o_ctrl->pdev->dev.of_node;
 
 	CDBG("Enter\n");
+
+#ifdef OIS_GYRO_ST
+	Disable_SPI2_ST();
+#endif
 	if (o_ctrl->ois_state != OIS_DISABLE_STATE) {
 
 		rc = msm_ois_vreg_control(o_ctrl, 0);
@@ -385,8 +396,68 @@ static int32_t msm_ois_power_down(struct msm_ois_ctrl_t *o_ctrl)
 			}
 		}
 	}
+
 	CDBG("Exit\n");
 	return rc;
+}
+
+void msm_ois_shift_gain(int distance)
+{
+	if ((g_i2c_ctrl->ois_state != OIS_OPS_ACTIVE) || (g_i2c_ctrl == NULL))
+		return;
+
+	mutex_lock(g_i2c_ctrl->ois_mutex);
+	ChangeShiftOISGain(distance);
+	mutex_unlock(g_i2c_ctrl->ois_mutex);
+
+	return;
+}
+EXPORT_SYMBOL(msm_ois_shift_gain);
+
+static void msm_ois_FW_download(struct work_struct *ois_work)
+{
+	struct msm_camera_cci_client *cci_client = NULL;
+	struct msm_ois_ctrl_t *o_ctrl = NULL;
+	int rc = 0;
+	CDBG("ois Enter, work:%p\n", ois_work);
+#ifdef _CHIRON_OIS
+	CDBG("ois Enter for _CHIRON_OIS");
+#endif
+	o_ctrl = container_of(ois_work, struct msm_ois_ctrl_t, ois_work);
+
+	mutex_lock(o_ctrl->ois_mutex);
+	cci_client = o_ctrl->i2c_client.cci_client;
+	cci_client->sid = 0x1C >> 1;
+	cci_client->retries = 3;
+	cci_client->id_map = 0;
+	cci_client->cci_i2c_master = o_ctrl->cci_master;
+	cci_client->i2c_freq_mode = I2C_FAST_MODE;
+
+	g_i2c_ctrl->i2c_client.addr_type = MSM_CAMERA_I2C_WORD_ADDR;
+	get_FADJ_MEM_from_non_volatile_memory();
+	VCOSET0();
+	rc = func_PROGRAM_DOWNLOAD();
+	if (rc < 0) {
+		pr_err("%d: download OIS FW fail\n", __LINE__);
+		goto exit;
+	}
+	rc = func_COEF_DOWNLOAD(0);
+	if (rc < 0) {
+		pr_err("%d: download OIS COEF fail\n", __LINE__);
+		goto exit;
+	}
+	VCOSET1();
+	I2C_OIS_spcl_cmnd(1, _cmd_8C_EI);
+	CDBG("%s ois goff 0x%x, 0x%x", __func__, FADJ_MEM.gl_GX_OFS, FADJ_MEM.gl_GY_OFS);
+
+	/* fadj_ois_gyro_offset_calibraion(); */
+	SET_FADJ_PARAM(&FADJ_MEM);
+	/* func_SET_SCENE_PARAM_for_NewGYRO_Fil(_SCENE_SPORT_3, 1, 0, 0, &FADJ_MEM); */
+	func_SET_SCENE_PARAM_for_NewGYRO_Fil(_SCENE_SPORT_3, 1, 0, 0, &FADJ_MEM);
+
+exit:
+	mutex_unlock(o_ctrl->ois_mutex);
+	CDBG("Exit\n");
 }
 
 static int msm_ois_init(struct msm_ois_ctrl_t *o_ctrl)
@@ -406,6 +477,22 @@ static int msm_ois_init(struct msm_ois_ctrl_t *o_ctrl)
 			pr_err("cci_init failed\n");
 	}
 	o_ctrl->ois_state = OIS_OPS_ACTIVE;
+
+	if (g_i2c_ctrl == NULL) {
+		g_i2c_ctrl = o_ctrl;
+		o_ctrl->ois_work_queue = alloc_workqueue("ois_FW_download", WQ_HIGHPRI|WQ_UNBOUND, 0);
+
+		if (!o_ctrl->ois_work_queue) {
+			pr_err("register ois FW workqueue fail\n");
+			rc = -ENOMEM;
+			goto error_alloc_workqueue;
+		}
+		INIT_WORK(&o_ctrl->ois_work, msm_ois_FW_download);
+		queue_work(o_ctrl->ois_work_queue, &o_ctrl->ois_work);
+	}
+
+error_alloc_workqueue:
+
 	CDBG("Exit\n");
 	return rc;
 }
@@ -644,6 +731,16 @@ static int msm_ois_close(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 	mutex_lock(o_ctrl->ois_mutex);
+
+	if (o_ctrl->ois_work_queue) {
+		mutex_unlock(o_ctrl->ois_mutex);
+		destroy_workqueue(o_ctrl->ois_work_queue);
+		mutex_lock(o_ctrl->ois_mutex);
+		o_ctrl->ois_work_queue = NULL;
+	}
+
+	g_i2c_ctrl = NULL;
+
 	if (o_ctrl->ois_device_type == MSM_CAMERA_PLATFORM_DEVICE &&
 		o_ctrl->ois_state != OIS_DISABLE_STATE) {
 		rc = o_ctrl->i2c_client.i2c_func_tbl->i2c_util(
