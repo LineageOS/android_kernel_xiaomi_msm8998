@@ -273,6 +273,10 @@ static int32_t msm_ois_power_down(struct msm_ois_ctrl_t *o_ctrl)
 {
 	int32_t rc = 0;
 	enum msm_sensor_power_seq_gpio_t gpio;
+	struct device_node *src_node = NULL;
+	int i = 0;
+	const char *ois_name;
+	struct device_node *of_node = o_ctrl->pdev->dev.of_node;
 
 	CDBG("Enter\n");
 	if (o_ctrl->ois_state != OIS_DISABLE_STATE) {
@@ -318,6 +322,68 @@ static int32_t msm_ois_power_down(struct msm_ois_ctrl_t *o_ctrl)
 
 		o_ctrl->i2c_tbl_index = 0;
 		o_ctrl->ois_state = OIS_OPS_INACTIVE;
+	} else {
+		if (of_gpio_count(of_node)) {
+			for (gpio = SENSOR_GPIO_AF_PWDM; gpio < SENSOR_GPIO_MAX;
+				gpio++) {
+				if (o_ctrl->gconf &&
+					o_ctrl->gconf->gpio_num_info &&
+					o_ctrl->gconf->gpio_num_info->valid[gpio] == 1) {
+					gpio_set_value_cansleep(
+						o_ctrl->gconf->gpio_num_info->gpio_num[gpio],
+						GPIOF_OUT_INIT_LOW);
+
+					if (o_ctrl->cam_pinctrl_status) {
+						rc = pinctrl_select_state(
+							o_ctrl->pinctrl_info.pinctrl,
+							o_ctrl->pinctrl_info.gpio_state_suspend);
+						if (rc < 0)
+							pr_err("ERR:%s:%d cannot set pin to suspend state: %d",
+								__func__, __LINE__, rc);
+						devm_pinctrl_put(o_ctrl->pinctrl_info.pinctrl);
+					}
+					o_ctrl->cam_pinctrl_status = 0;
+					rc = msm_camera_request_gpio_table(
+						o_ctrl->gconf->cam_gpio_req_tbl,
+						o_ctrl->gconf->cam_gpio_req_tbl_size,
+						0);
+					if (rc < 0)
+						pr_err("ERR:%s:Failed in selecting state in ois power down: %d\n",
+							__func__, rc);
+				}
+			}
+		} else {
+			for (i = 0; i < o_ctrl->vreg_cfg.num_vreg; i++) {
+				src_node = of_parse_phandle(of_node, "cam_vaf-supply", 0);
+				if (!src_node) {
+					pr_err("ois node is NULL\n");
+					continue;
+				}
+				rc = of_property_read_string(src_node, "regulator-name", &ois_name);
+				if (rc < 0) {
+					if (strcmp(ois_name, "vaf_gpio_supply") == 0) {
+						pr_err("read regulator-name fail\n");
+						of_node_put(src_node);
+						src_node = NULL;
+						break;
+					}
+				} else {
+					pr_err("ois regulator name = %s", ois_name);
+					if (strcmp(ois_name, "vaf_gpio_supply") == 0) {
+						if (gpio_get_value_cansleep(29)) {
+							pr_err("ois power down again\n");
+							for (i = 0; i < 3; i++) {
+								rc = msm_ois_vreg_control(o_ctrl, 0);
+								if (rc < 0)
+									pr_err("%s power down again failed %d\n", __func__, __LINE__);
+							}
+						}
+					}
+				}
+				of_node_put(src_node);
+				src_node = NULL;
+			}
+		}
 	}
 	CDBG("Exit\n");
 	return rc;
