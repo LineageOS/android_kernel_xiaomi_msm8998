@@ -917,12 +917,6 @@ void msm_isp_increment_frame_id(struct vfe_device *vfe_dev,
 				pr_err_ratelimited("Frame out of sync on vfe %d\n",
 					vfe_dev->pdev->id);
 				/*
-				 * set this isp as async mode to force
-				 *it sync again at the next sof
-				 */
-				src_info->dual_hw_ms_info.sync_state =
-							MSM_ISP_DUAL_CAM_ASYNC;
-				/*
 				 * set the other isp as async mode to force
 				 * it sync again at the next sof
 				 */
