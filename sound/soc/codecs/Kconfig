@@ -181,6 +181,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM9712 if SND_SOC_AC97_BUS
 	select SND_SOC_WM9713 if SND_SOC_AC97_BUS
 	select SND_SOC_TFA98XX if I2C
+	select SND_SOC_TAS2559 if I2C
         help
           Normally ASoC codec drivers are only built if a machine driver which
           uses them is also built since they are only usable with a machine
@@ -989,6 +990,9 @@ config SND_SOC_TPA6130A2
 	depends on I2C
 
 config SND_SOC_TFA98XX
+	tristate
+
+config SND_SOC_TAS2559
 	tristate
 
 config SND_SOC_MSM_STUB

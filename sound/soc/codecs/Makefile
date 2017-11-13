@@ -431,3 +431,4 @@ obj-y += sdm660_cdc/
 obj-y += msm_sdw/
 
 obj-$(CONFIG_SND_SOC_TFA98XX) += tfa98xx/
+obj-$(CONFIG_SND_SOC_TAS2559) += tas2559/
