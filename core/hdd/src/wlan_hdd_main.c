@@ -5711,6 +5711,8 @@ static void hdd_roc_context_destroy(hdd_context_t *hdd_ctx)
  */
 static int hdd_context_deinit(hdd_context_t *hdd_ctx)
 {
+	qdf_wake_lock_destroy(&hdd_ctx->monitor_mode_wakelock);
+
 	wlan_hdd_cfg80211_deinit(hdd_ctx->wiphy);
 
 	hdd_roc_context_destroy(hdd_ctx);
@@ -5874,6 +5876,12 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 	hdd_wlan_stop_modules(hdd_ctx, false);
 
 	qdf_nbuf_deinit_replenish_timer();
+
+	if (QDF_GLOBAL_MONITOR_MODE ==  hdd_get_conparam()) {
+		hdd_info("Release wakelock for monitor mode!");
+		qdf_wake_lock_release(&hdd_ctx->monitor_mode_wakelock,
+				WIFI_POWER_EVENT_WAKELOCK_MONITOR_MODE);
+	}
 
 	qdf_spinlock_destroy(&hdd_ctx->hdd_adapter_lock);
 	qdf_spinlock_destroy(&hdd_ctx->sta_update_info_lock);
@@ -7727,6 +7735,9 @@ static int hdd_context_init(hdd_context_t *hdd_ctx)
 				     hdd_ctx->config);
 	if (ret)
 		goto roc_destroy;
+
+	qdf_wake_lock_create(&hdd_ctx->monitor_mode_wakelock,
+			     "monitor_mode_wakelock");
 
 	return 0;
 
@@ -11585,8 +11596,11 @@ static void hdd_cleanup_present_mode(hdd_context_t *hdd_ctx,
 	driver_status = hdd_ctx->driver_status;
 
 	switch (curr_mode) {
-	case QDF_GLOBAL_MISSION_MODE:
 	case QDF_GLOBAL_MONITOR_MODE:
+		hdd_info("Release wakelock for monitor mode!");
+		qdf_wake_lock_release(&hdd_ctx->monitor_mode_wakelock,
+				      WIFI_POWER_EVENT_WAKELOCK_MONITOR_MODE);
+	case QDF_GLOBAL_MISSION_MODE:
 	case QDF_GLOBAL_FTM_MODE:
 		if (driver_status != DRIVER_MODULES_CLOSED) {
 			hdd_abort_mac_scan_all_adapters(hdd_ctx);
@@ -11750,6 +11764,12 @@ static int __con_mode_handler(const char *kmessage, struct kernel_param *kp,
 			ret = -EINVAL;
 			goto reset_flags;
 		}
+	}
+
+	if (con_mode == QDF_GLOBAL_MONITOR_MODE) {
+		hdd_info("Acquire wakelock for monitor mode!");
+		qdf_wake_lock_acquire(&hdd_ctx->monitor_mode_wakelock,
+				      WIFI_POWER_EVENT_WAKELOCK_MONITOR_MODE);
 	}
 
 	hdd_info("Mode successfully changed to %s", kmessage);

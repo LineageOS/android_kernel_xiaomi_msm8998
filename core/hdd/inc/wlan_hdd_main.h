@@ -2027,6 +2027,7 @@ struct hdd_context_s {
 #endif
 	struct sta_ap_intf_check_work_ctx *sta_ap_intf_check_work_info;
 	uint8_t active_ac;
+	qdf_wake_lock_t monitor_mode_wakelock;
 };
 
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,
