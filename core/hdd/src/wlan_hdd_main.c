@@ -2064,6 +2064,13 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 	}
 
 	mutex_lock(&hdd_ctx->iface_change_lock);
+	if (hdd_ctx->driver_status == DRIVER_MODULES_ENABLED) {
+		hdd_info("Driver modules already Enabled");
+		mutex_unlock(&hdd_ctx->iface_change_lock);
+		EXIT();
+		return 0;
+	}
+
 	hdd_ctx->start_modules_in_progress = true;
 
 	if (QDF_TIMER_STATE_RUNNING ==
@@ -2167,9 +2174,6 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		hdd_enable_power_management();
 		hdd_info("Driver Modules Successfully Enabled");
 		hdd_ctx->driver_status = DRIVER_MODULES_ENABLED;
-		break;
-	case DRIVER_MODULES_ENABLED:
-		hdd_info("Driver modules already Enabled");
 		break;
 	default:
 		hdd_err("WLAN start invoked in wrong state! :%d\n",
