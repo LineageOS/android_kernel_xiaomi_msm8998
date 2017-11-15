@@ -5893,7 +5893,6 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 	wlan_hdd_deinit_chan_info(hdd_ctx);
 	hdd_exit_netlink_services(hdd_ctx);
 	mutex_destroy(&hdd_ctx->iface_change_lock);
-	qdf_mem_free(hdd_ctx->target_hw_name);
 	hdd_context_destroy(hdd_ctx);
 }
 
@@ -9637,6 +9636,11 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode)
 	if (!hif_ctx) {
 		hdd_err("Hif context is Null");
 		ret = -EINVAL;
+	}
+
+	if (hdd_ctx->target_hw_name) {
+		qdf_mem_free(hdd_ctx->target_hw_name);
+		hdd_ctx->target_hw_name = NULL;
 	}
 
 	hdd_hif_close(hif_ctx);
