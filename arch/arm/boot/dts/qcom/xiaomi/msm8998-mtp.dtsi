@@ -910,15 +910,14 @@
 
 /* Red led was used for powersupply of White led */
 &red_led {
-	qcom,start-idx = <1>;
-	qcom,idx-len = <10>;
-	qcom,duty-pcts = [00 19 32 4B 64
-			64 4B 32 19 00];
-	qcom,lut-flags = <3>;
-	qcom,pause-lo = <0>;
-	qcom,pause-hi = <0>;
-	qcom,ramp-step-ms = <255>;
 	qcom,use-blink;
+	qcom,start-idx = <0>;
+	qcom,idx-len = <8>;
+	qcom,duty-pcts = [ 00 0E 1C 2A 38 46 54 64 ];
+	qcom,lut-flags = <31>; /* loop, ramp up, reverse, pause hi, pause lo */
+	qcom,pause-lo = <500>;
+	qcom,pause-hi = <500>;
+	qcom,ramp-step-ms = <50>;
 	linux,name = "white";
 };
 
