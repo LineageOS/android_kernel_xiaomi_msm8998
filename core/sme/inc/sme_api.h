@@ -476,6 +476,9 @@ QDF_STATUS sme_change_country_code(tHalHandle hHal,
 		bool sendRegHint);
 QDF_STATUS sme_generic_change_country_code(tHalHandle hHal,
 					   uint8_t *pCountry);
+
+QDF_STATUS sme_update_channel_list(tpAniSirGlobal mac_ctx);
+
 QDF_STATUS sme_tx_fail_monitor_start_stop_ind(tHalHandle hHal,
 		uint8_t tx_fail_count,
 		void *txFailIndCallback);
@@ -1887,4 +1890,14 @@ static inline void sme_free_join_rsp_fils_params(tCsrRoamInfo *roam_info)
  * Return: None
  */
 void sme_display_disconnect_stats(tHalHandle hal, uint8_t session_id);
+
+/**
+ * sme_set_vc_mode_config() - Set voltage corner config to FW.
+ * @bitmap:	Bitmap that refers to voltage corner config with
+ * different phymode and bw configuration
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_set_vc_mode_config(uint32_t vc_bitmap);
+
 #endif /* #if !defined( __SME_API_H ) */

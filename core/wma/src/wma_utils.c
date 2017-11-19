@@ -639,6 +639,8 @@ static tSirLLStatsResults *wma_get_ll_stats_ext_buf(uint32_t *len,
 {
 	tSirLLStatsResults *buf;
 	uint32_t buf_len;
+	uint32_t total_array_len, total_peer_len;
+	bool excess_data = false;
 
 	if (!len || !fixed_param) {
 		WMA_LOGE(FL("Invalid input parameters."));
@@ -701,22 +703,97 @@ static tSirLLStatsResults *wma_get_ll_stats_ext_buf(uint32_t *len,
 	 *     |         VO                    |
 	 *     ---------------------------------
 	 */
+
 	buf_len = sizeof(tSirLLStatsResults) +
-		  sizeof(struct sir_wifi_ll_ext_stats) +
-		  fixed_param->num_chan_cca_stats *
-		  sizeof(struct sir_wifi_chan_cca_stats) +
-		  peer_num *
-		  (sizeof(struct sir_wifi_ll_ext_peer_stats) +
-		   WLAN_MAX_AC *
-		   (sizeof(struct sir_wifi_tx) +
-		    sizeof(struct sir_wifi_rx)) +
-		    sizeof(uint32_t) * WLAN_MAX_AC *
-		    (fixed_param->tx_mpdu_aggr_array_len +
-		     fixed_param->tx_succ_mcs_array_len +
-		     fixed_param->tx_fail_mcs_array_len +
-		     fixed_param->tx_ppdu_delay_array_len +
-		     fixed_param->rx_mpdu_aggr_array_len +
-		     fixed_param->rx_mcs_array_len));
+		  sizeof(struct sir_wifi_ll_ext_stats);
+	do {
+		if (fixed_param->num_chan_cca_stats > (WMI_SVC_MSG_MAX_SIZE /
+		    sizeof(struct sir_wifi_chan_cca_stats))) {
+			excess_data = true;
+			break;
+		}
+		buf_len += (fixed_param->num_chan_cca_stats *
+				sizeof(struct sir_wifi_chan_cca_stats));
+		if (fixed_param->tx_mpdu_aggr_array_len >
+		    WMI_SVC_MSG_MAX_SIZE) {
+			excess_data = true;
+			break;
+		} else {
+			total_array_len = fixed_param->tx_mpdu_aggr_array_len;
+		}
+		if (fixed_param->tx_succ_mcs_array_len >
+		    (WMI_SVC_MSG_MAX_SIZE - total_array_len)) {
+			excess_data = true;
+			break;
+		} else {
+			total_array_len += fixed_param->tx_succ_mcs_array_len;
+		}
+		if (fixed_param->tx_fail_mcs_array_len >
+		    (WMI_SVC_MSG_MAX_SIZE - total_array_len)) {
+			excess_data = true;
+			break;
+		} else {
+			total_array_len += fixed_param->tx_fail_mcs_array_len;
+		}
+		if (fixed_param->tx_ppdu_delay_array_len >
+		    (WMI_SVC_MSG_MAX_SIZE - total_array_len)) {
+			excess_data = true;
+			break;
+		} else {
+			total_array_len += fixed_param->tx_ppdu_delay_array_len;
+		}
+		if (fixed_param->rx_mpdu_aggr_array_len >
+		    (WMI_SVC_MSG_MAX_SIZE - total_array_len)) {
+			excess_data = true;
+			break;
+		} else {
+			total_array_len += fixed_param->rx_mpdu_aggr_array_len;
+		}
+		if (fixed_param->rx_mcs_array_len >
+		    (WMI_SVC_MSG_MAX_SIZE - total_array_len)) {
+			excess_data = true;
+			break;
+		} else {
+			total_array_len += fixed_param->rx_mcs_array_len;
+		}
+
+		if (total_array_len > (WMI_SVC_MSG_MAX_SIZE /
+		    (sizeof(uint32_t) * WLAN_MAX_AC))) {
+			excess_data = true;
+			break;
+		} else {
+			total_peer_len = (sizeof(uint32_t) * WLAN_MAX_AC *
+					 total_array_len) +
+					 (WLAN_MAX_AC *
+					 (sizeof(struct sir_wifi_tx) +
+					 sizeof(struct sir_wifi_rx)));
+		}
+		if (total_peer_len > WMI_SVC_MSG_MAX_SIZE) {
+			excess_data = true;
+			break;
+		}
+		if (peer_num > (WMI_SVC_MSG_MAX_SIZE - total_peer_len) /
+				sizeof(struct sir_wifi_ll_ext_peer_stats)) {
+			excess_data = true;
+			break;
+		} else {
+			buf_len += peer_num *
+				   (sizeof(struct sir_wifi_ll_ext_peer_stats) +
+				    total_peer_len);
+		}
+	} while (0);
+
+	if (excess_data || (buf_len > WMI_SVC_MSG_MAX_SIZE)) {
+		WMA_LOGE("%s: excess wmi buffer: peer %d cca %d tx_mpdu %d tx_succ%d tx_fail %d tx_ppdu %d rx_mpdu %d rx_mcs %d",
+			 __func__, peer_num, fixed_param->num_chan_cca_stats,
+			 fixed_param->tx_mpdu_aggr_array_len,
+			 fixed_param->tx_succ_mcs_array_len,
+			 fixed_param->tx_fail_mcs_array_len,
+			 fixed_param->tx_ppdu_delay_array_len,
+			 fixed_param->rx_mpdu_aggr_array_len,
+			 fixed_param->rx_mcs_array_len);
+		return NULL;
+	}
 
 	buf = (tSirLLStatsResults *)qdf_mem_malloc(buf_len);
 	if (buf == NULL) {
@@ -3411,6 +3488,7 @@ QDF_STATUS wma_wni_cfg_dnld(tp_wma_handle wma_handle)
 	return qdf_status;
 }
 
+#define BIG_ENDIAN_MAX_DEBUG_BUF   500
 /**
  * wma_unified_debug_print_event_handler() - debug print event handler
  * @handle: wma handle
@@ -3436,7 +3514,12 @@ int wma_unified_debug_print_event_handler(void *handle, uint8_t *datap,
 
 #ifdef BIG_ENDIAN_HOST
 	{
-		char dbgbuf[500] = { 0 };
+		if (datalen > BIG_ENDIAN_MAX_DEBUG_BUF) {
+			WMA_LOGE("%s Invalid data len %d, limiting to max",
+				 __func__, datalen);
+			datalen = BIG_ENDIAN_MAX_DEBUG_BUF;
+		}
+		char dbgbuf[BIG_ENDIAN_MAX_DEBUG_BUF] = { 0 };
 
 		memcpy(dbgbuf, data, datalen);
 		SWAPME(dbgbuf, datalen);
@@ -5916,6 +5999,42 @@ static inline void wma_get_event_bitmap_idx(WOW_WAKE_EVENT_TYPE event,
 		*bit_idx = event % (wow_bitmap_size * 8);
 	}
 }
+
+/**
+ * wma_set_vc_mode_config() - set voltage corner mode config to FW.
+ * @wma_handle:	pointer to wma handle.
+ * @vc_bitmap:	value needs to set to firmware.
+ *
+ * At the time of driver startup, set operating voltage corner mode
+ * for differenet phymode and bw configurations.
+ *
+ * Return: QDF_STATUS.
+ */
+QDF_STATUS wma_set_vc_mode_config(void *wma_handle,
+		uint32_t vc_bitmap)
+{
+	int32_t ret;
+	tp_wma_handle wma = (tp_wma_handle)wma_handle;
+	struct pdev_params pdevparam;
+
+	pdevparam.param_id = WMI_PDEV_UPDATE_WDCVS_ALGO;
+	pdevparam.param_value = vc_bitmap;
+
+	ret = wmi_unified_pdev_param_send(wma->wmi_handle,
+			&pdevparam,
+			WMA_WILDCARD_PDEV_ID);
+	if (ret) {
+		WMA_LOGE("Fail to Set Voltage Corner config (0x%x)",
+			vc_bitmap);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	WMA_LOGD("Successfully Set Voltage Corner config (0x%x)",
+		vc_bitmap);
+
+	return QDF_STATUS_SUCCESS;
+}
+
 
 void wma_set_wow_event_bitmap(WOW_WAKE_EVENT_TYPE event,
 			      uint32_t wow_bitmap_size,

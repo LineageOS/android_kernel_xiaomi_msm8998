@@ -2753,7 +2753,8 @@ static inline bool wma_crash_on_fw_timeout(bool crash_enabled)
 	if (cds_is_driver_unloading())
 		return false;
 
-	if (!cds_is_fw_down())
+	/* Firmware is down send failure response */
+	if (cds_is_fw_down())
 		return false;
 
 	return crash_enabled;
@@ -4868,6 +4869,11 @@ void wma_delete_sta(tp_wma_handle wma, tpDeleteStaParams del_sta)
 		    !WMI_SERVICE_IS_ENABLED(wma->wmi_service_bitmap,
 				WMI_SERVICE_SYNC_DELETE_CMDS)) {
 			WMA_LOGD(FL("vdev_id %d status %d"),
+				 del_sta->smesessionId, del_sta->status);
+			qdf_mem_free(del_sta);
+		} else if (!rsp_requested &&
+				(del_sta->status != QDF_STATUS_SUCCESS)) {
+			WMA_LOGD(FL("Release del_sta mem vdev_id %d status %d"),
 				 del_sta->smesessionId, del_sta->status);
 			qdf_mem_free(del_sta);
 		}

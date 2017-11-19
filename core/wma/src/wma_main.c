@@ -1842,6 +1842,8 @@ static void wma_cleanup_vdev_resp_queue(tp_wma_handle wma)
 		return;
 	}
 
+	WMA_LOGD(FL("Cleaning up vdev resp queue"));
+
 	/* peek front, and then cleanup it in wma_vdev_resp_timer */
 	while (qdf_list_peek_front(&wma->vdev_resp_queue, &node1) ==
 				   QDF_STATUS_SUCCESS) {
@@ -2210,12 +2212,14 @@ void wma_vdev_init(struct wma_txrx_node *vdev)
 {
 	qdf_wake_lock_create(&vdev->vdev_start_wakelock, "vdev_start");
 	qdf_wake_lock_create(&vdev->vdev_stop_wakelock, "vdev_stop");
+	qdf_wake_lock_create(&vdev->vdev_set_key_wakelock, "vdev_set_key");
 }
 
 void wma_vdev_deinit(struct wma_txrx_node *vdev)
 {
 	qdf_wake_lock_destroy(&vdev->vdev_start_wakelock);
 	qdf_wake_lock_destroy(&vdev->vdev_stop_wakelock);
+	qdf_wake_lock_destroy(&vdev->vdev_set_key_wakelock);
 }
 
 /**
@@ -4167,8 +4171,7 @@ static inline void wma_update_target_services(tp_wma_handle wh,
 	if (WMI_SERVICE_IS_ENABLED(wh->wmi_service_bitmap, WMI_SERVICE_EXTSCAN))
 		g_fw_wlan_feat_caps |= (1 << EXTENDED_SCAN);
 #endif /* FEATURE_WLAN_EXTSCAN */
-	cfg->lte_coex_ant_share = WMI_SERVICE_IS_ENABLED(wh->wmi_service_bitmap,
-					WMI_SERVICE_LTE_ANT_SHARE_SUPPORT);
+
 #ifdef FEATURE_WLAN_TDLS
 	/* Enable TDLS */
 	if (WMI_SERVICE_IS_ENABLED(wh->wmi_service_bitmap, WMI_SERVICE_TDLS)) {

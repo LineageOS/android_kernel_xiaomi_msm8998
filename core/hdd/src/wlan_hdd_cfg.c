@@ -616,6 +616,15 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ENABLE_LTE_COEX_DEFAULT,
 		     CFG_ENABLE_LTE_COEX_MIN,
 		     CFG_ENABLE_LTE_COEX_MAX),
+
+	REG_VARIABLE(CFG_VC_MODE_BITMAP, WLAN_PARAM_HexInteger,
+		     struct hdd_config, vc_mode_cfg_bitmap,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_VC_MODE_BITMAP_DEFAULT,
+		     CFG_VC_MODE_BITMAP_MIN,
+		     CFG_VC_MODE_BITMAP_MAX),
+
+
 /*
  * <ini>
  * gApAutoChannelSelection - Force ACS from ini
@@ -2609,6 +2618,13 @@ struct reg_table_entry g_registry_table[] = {
 			     CFG_ENABLE_SSR_MAX,
 			     cb_notify_set_enable_ssr, 0),
 
+	REG_VARIABLE(CFG_ENABLE_DATA_STALL_DETECTION, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_data_stall_det,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_DATA_STALL_DETECTION_DEFAULT,
+		     CFG_ENABLE_DATA_STALL_DETECTION_MIN,
+		     CFG_ENABLE_DATA_STALL_DETECTION_MAX),
+
 	REG_VARIABLE(CFG_MAX_MEDIUM_TIME, WLAN_PARAM_Integer,
 		     struct hdd_config, cfgMaxMediumTime,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -3615,6 +3631,14 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ENABLE_NON_DFS_CHAN_ON_RADAR_MIN,
 		     CFG_ENABLE_NON_DFS_CHAN_ON_RADAR_MAX),
 
+	REG_VARIABLE(CFG_P2P_LISTEN_DEFER_INTERVAL_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, p2p_listen_defer_interval,
+		     VAR_FLAGS_OPTIONAL |
+		     VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_P2P_LISTEN_DEFER_INTERVAL_DEFAULT,
+		     CFG_P2P_LISTEN_DEFER_INTERVAL_MIN,
+		     CFG_P2P_LISTEN_DEFER_INTERVAL_MAX),
+
 	REG_VARIABLE(CFG_MULTICAST_HOST_FW_MSGS, WLAN_PARAM_Integer,
 		     struct hdd_config, multicast_host_fw_msgs,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -3663,6 +3687,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_FLOW_STEERING_ENABLED_DEFAULT,
 		     CFG_FLOW_STEERING_ENABLED_MIN,
 		     CFG_FLOW_STEERING_ENABLED_MAX),
+
+	REG_VARIABLE(CFG_MAX_MSDUS_PER_RXIND_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, max_msdus_per_rxinorderind,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_MAX_MSDUS_PER_RXIND_DEFAULT,
+		     CFG_MAX_MSDUS_PER_RXIND_MIN,
+		     CFG_MAX_MSDUS_PER_RXIND_MAX),
 
 	REG_VARIABLE(CFG_ACTIVE_MODE_OFFLOAD, WLAN_PARAM_Integer,
 		     struct hdd_config, active_mode_offload,
@@ -3791,6 +3822,13 @@ struct reg_table_entry g_registry_table[] = {
 		     struct hdd_config, dbs_scan_selection,
 		     VAR_FLAGS_OPTIONAL,
 		     (void *)CFG_DBS_SCAN_SELECTION_DEFAULT),
+
+	REG_VARIABLE(CFG_STA_SAP_SCC_ON_DFS_CHAN, WLAN_PARAM_HexInteger,
+		     struct hdd_config, sta_sap_scc_on_dfs_chan,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_STA_SAP_SCC_ON_DFS_CHAN_DEFAULT,
+		     CFG_STA_SAP_SCC_ON_DFS_CHAN_MIN,
+		     CFG_STA_SAP_SCC_ON_DFS_CHAN_MAX),
 
 #ifdef FEATURE_WLAN_SCAN_PNO
 	REG_VARIABLE(CFG_PNO_CHANNEL_PREDICTION_NAME, WLAN_PARAM_Integer,
@@ -4268,6 +4306,14 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_INDOOR_CHANNEL_SUPPORT_DEFAULT,
 		     CFG_INDOOR_CHANNEL_SUPPORT_MIN,
 		     CFG_INDOOR_CHANNEL_SUPPORT_MAX),
+
+	REG_VARIABLE(CFG_MARK_INDOOR_AS_DISABLE_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config, disable_indoor_channel,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_MARK_INDOOR_AS_DISABLE_DEFAULT,
+		     CFG_MARK_INDOOR_AS_DISABLE_MIN,
+		     CFG_MARK_INDOOR_AS_DISABLE_MAX),
 
 	REG_VARIABLE(CFG_SAP_TX_LEAKAGE_THRESHOLD_NAME,
 		WLAN_PARAM_Integer,
@@ -5760,7 +5806,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [gApEnableUapsd] value = [%u]",
 		  pHddCtx->config->apUapsdEnabled);
 
-	hdd_debug("Name = [gEnableApProt] value = [%u]",
+	hdd_debug("Name = [g_mark_indoor_as_disable] Value = [%u]",
+		  pHddCtx->config->disable_indoor_channel);
+	hdd_info("Name = [gEnableApProt] value = [%u]",
 		  pHddCtx->config->apProtEnabled);
 	hdd_debug("Name = [gAPAutoShutOff] Value = [%u]",
 		  pHddCtx->config->nAPAutoShutOff);
@@ -6023,6 +6071,8 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		  pHddCtx->config->enableLpwrImgTransition);
 	hdd_debug("Name = [gEnableSSR] Value = [%u] ",
 		  pHddCtx->config->enableSSR);
+	hdd_debug("Name = [gEnableDataStallDetection] Value = [%u] ",
+		  pHddCtx->config->enable_data_stall_det);
 	hdd_debug("Name = [gEnableVhtFor24GHzBand] Value = [%u] ",
 		  pHddCtx->config->enableVhtFor24GHzBand);
 	hdd_debug("Name = [gEnableIbssHeartBeatOffload] Value = [%u] ",
@@ -6210,6 +6260,12 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		  pHddCtx->config->tso_enable);
 	hdd_debug("Name = [LROEnable] value = [%d]",
 		  pHddCtx->config->lro_enable);
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_FLOW_STEERING_ENABLED_NAME,
+		  pHddCtx->config->flow_steering_enable);
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_MAX_MSDUS_PER_RXIND_NAME,
+		  pHddCtx->config->max_msdus_per_rxinorderind);
 	hdd_debug("Name = [active_mode_offload] value = [%d]",
 		  pHddCtx->config->active_mode_offload);
 	hdd_debug("Name = [gfine_time_meas_cap] value = [%u]",
@@ -6237,6 +6293,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] Value = [%s]",
 		  CFG_DBS_SCAN_SELECTION_NAME,
 		  pHddCtx->config->dbs_scan_selection);
+	hdd_debug("Name = [%s] value = [%u]",
+		  CFG_STA_SAP_SCC_ON_DFS_CHAN,
+		  pHddCtx->config->sta_sap_scc_on_dfs_chan);
 #ifdef FEATURE_WLAN_SCAN_PNO
 	hdd_debug("Name = [%s] Value = [%u]",
 		   CFG_PNO_CHANNEL_PREDICTION_NAME,
@@ -6504,6 +6563,11 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] value = [%u]",
 		CFG_DTIM_1CHRX_ENABLE_NAME,
 		pHddCtx->config->enable_dtim_1chrx);
+	hdd_debug("Name = [%s] value = [0x%x]", CFG_VC_MODE_BITMAP,
+		pHddCtx->config->vc_mode_cfg_bitmap);
+	hdd_debug("Name = [%s] value = [%u]",
+		CFG_DOT11P_MODE_NAME,
+		pHddCtx->config->dot11p_mode);
 }
 
 /**

@@ -938,7 +938,6 @@ typedef struct sAniSirGlobal {
 
 	csr_readyToSuspendCallback readyToSuspendCallback;
 	void *readyToSuspendContext;
-	uint8_t lteCoexAntShare;
 	uint8_t beacon_offload;
 	bool pmf_offload;
 	bool is_fils_roaming_supported;
@@ -966,6 +965,7 @@ typedef struct sAniSirGlobal {
 	uint8_t hw_dbs_capable;
 	/* Based on INI parameter */
 	uint32_t dual_mac_feature_disable;
+	uint32_t sta_sap_scc_on_dfs_chan;
 	sir_mgmt_frame_ind_callback mgmt_frame_ind_cb;
 	sir_p2p_ack_ind_callback p2p_ack_ind_cb;
 	bool first_scan_done;

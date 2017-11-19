@@ -434,7 +434,7 @@ enum hdd_dot11_mode {
 #define CFG_NEIGHBOR_SCAN_TIMER_PERIOD_NAME             "gNeighborScanTimerPeriod"
 #define CFG_NEIGHBOR_SCAN_TIMER_PERIOD_MIN              (3)
 #define CFG_NEIGHBOR_SCAN_TIMER_PERIOD_MAX              (300)
-#define CFG_NEIGHBOR_SCAN_TIMER_PERIOD_DEFAULT          (200)
+#define CFG_NEIGHBOR_SCAN_TIMER_PERIOD_DEFAULT          (100)
 
 /*
  * <ini>
@@ -459,7 +459,7 @@ enum hdd_dot11_mode {
 #define CFG_NEIGHBOR_SCAN_MIN_TIMER_PERIOD_NAME         "gRoamRestTimeMin"
 #define CFG_NEIGHBOR_SCAN_MIN_TIMER_PERIOD_MIN          (3)
 #define CFG_NEIGHBOR_SCAN_MIN_TIMER_PERIOD_MAX          (300)
-#define CFG_NEIGHBOR_SCAN_MIN_TIMER_PERIOD_DEFAULT      (200)
+#define CFG_NEIGHBOR_SCAN_MIN_TIMER_PERIOD_DEFAULT      (50)
 
 /*
  * <ini>
@@ -5196,6 +5196,24 @@ enum hdd_link_speed_rpt_type {
 #define CFG_ENABLE_SSR_MAX                  (1)
 #define CFG_ENABLE_SSR_DEFAULT              (1)
 
+/**
+ * <ini>
+ * gEnableDataStallDetection - Enable/Disable Data stall detection
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable/disable data stall detection
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_DATA_STALL_DETECTION           "gEnableDataStallDetection"
+#define CFG_ENABLE_DATA_STALL_DETECTION_MIN       (0)
+#define CFG_ENABLE_DATA_STALL_DETECTION_MAX       (1)
+#define CFG_ENABLE_DATA_STALL_DETECTION_DEFAULT   (1)
+
 /*
  * <ini>
  * gEnableOverLapCh - Enables Overlap Channel. If set, allow overlapping
@@ -5495,6 +5513,52 @@ enum hdd_link_speed_rpt_type {
 #define CFG_ENABLE_DYNAMIC_DTIM_MIN        (0)
 #define CFG_ENABLE_DYNAMIC_DTIM_MAX        (9)
 #define CFG_ENABLE_DYNAMIC_DTIM_DEFAULT    (0)
+
+/*
+ * <ini>
+ * gConfigVCmodeBitmap - Bitmap for operating voltage corner mode
+ * @Min: 0x00000000
+ * @Max: 0x0fffffff
+ * @Default: 0x0000000a
+ * This ini is used to set operating voltage corner mode for differenet
+ * phymode and bw configurations. Every 2 bits till BIT27 are dedicated
+ * for a specific configuration. Bit values decide the type of voltage
+ * corner mode. All the details below -
+ *
+ * Configure operating voltage corner mode based on phymode and bw.
+ * bit 0-1 -   operating voltage corner mode for 11a/b.
+ * bit 2-3 -   operating voltage corner mode for 11g.
+ * bit 4-5 -   operating voltage corner mode for 11n, 20MHz, 1x1.
+ * bit 6-7 -   operating voltage corner mode for 11n, 20MHz, 2x2.
+ * bit 8-9 -   operating voltage corner mode for 11n, 40MHz, 1x1.
+ * bit 10-11 - operating voltage corner mode for 11n, 40MHz, 2x2.
+ * bit 12-13 - operating voltage corner mode for 11ac, 20MHz, 1x1.
+ * bit 14-15 - operating voltage corner mode for 11ac, 20MHz, 2x2.
+ * bit 16-17 - operating voltage corner mode for 11ac, 40MHz, 1x1.
+ * bit 18-19 - operating voltage corner mode for 11ac, 40MHz, 2x2.
+ * bit 20-21 - operating voltage corner mode for 11ac, 80MHz, 1x1.
+ * bit 22-23 - operating voltage corner mode for 11ac, 80MHz, 2x2.
+ * bit 24-25 - operating voltage corner mode for 11ac, 160MHz, 1x1.
+ * bit 26-27 - operating voltage corner mode for 11ac, 160MHz, 2x2.
+ * ---------------------------------------------
+ * 00 - Static voltage corner SVS
+ * 01 - static voltage corner LOW SVS
+ * 10 - Dynamic voltage corner selection based on TPUT
+ * 11 - Dynamic voltage corner selection based on TPUT and Tx Flush counters
+
+ * Related: None
+ *
+ * Supported Feature: None
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_VC_MODE_BITMAP                  "gConfigVCmode"
+#define CFG_VC_MODE_BITMAP_MIN              (0x00000000)
+#define CFG_VC_MODE_BITMAP_MAX              (0x0fffffff)
+#define CFG_VC_MODE_BITMAP_DEFAULT          (0x00000005)
 
 /*
  * Driver Force ACS is reintroduced for android SAP legacy configuration method.
@@ -8312,6 +8376,20 @@ enum hdd_link_speed_rpt_type {
 #define CFG_FLOW_STEERING_ENABLED_DEFAULT     (0)
 
 /*
+ * Max number of MSDUs per HTT RX IN ORDER INDICATION msg.
+ * Note that this has a direct impact on the size of source CE rings.
+ * It is possible to go below 8, but would require testing; so we are
+ * restricting the lower limit to 8 artificially
+ *
+ * It is recommended that this value is a POWER OF 2.
+ *
+ * Values lower than 8 are for experimental purposes only.
+ */
+#define CFG_MAX_MSDUS_PER_RXIND_NAME          "maxMSDUsPerRxInd"
+#define CFG_MAX_MSDUS_PER_RXIND_MIN           (4)
+#define CFG_MAX_MSDUS_PER_RXIND_MAX           (32)
+#define CFG_MAX_MSDUS_PER_RXIND_DEFAULT       (32)
+/*
  * In static display use case when APPS is in stand alone power save mode enable
  * active offload mode which helps FW to filter out MC/BC data packets to avoid
  * APPS wake up and save more power.
@@ -8634,6 +8712,33 @@ enum dot11p_mode {
  */
 #define CFG_DBS_SCAN_SELECTION_NAME          "gdbs_scan_selection"
 #define CFG_DBS_SCAN_SELECTION_DEFAULT       ""
+
+/*
+ * <ini>
+
+ * g_sta_sap_scc_on_dfs_chan - Allow STA+SAP SCC on DFS channel with
+ * master mode support disabled.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to allow STA+SAP SCC on DFS channel with master mode
+ * support disabled.
+ * 0 - Disallow STA+SAP SCC on DFS channel
+ * 1 - Allow STA+SAP SCC on DFS channel with master mode disabled
+ *
+ * Related: None.
+ *
+ * Supported Feature: Non-DBS, DBS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_STA_SAP_SCC_ON_DFS_CHAN              "g_sta_sap_scc_on_dfs_chan"
+#define CFG_STA_SAP_SCC_ON_DFS_CHAN_MIN          (0)
+#define CFG_STA_SAP_SCC_ON_DFS_CHAN_MAX          (1)
+#define CFG_STA_SAP_SCC_ON_DFS_CHAN_DEFAULT      (0)
 
 /*
  * gPNOChannelPrediction will allow user to enable/disable the
@@ -9490,6 +9595,33 @@ enum restart_beaconing_on_ch_avoid_rule {
 #define CFG_INDOOR_CHANNEL_SUPPORT_MIN      (0)
 #define CFG_INDOOR_CHANNEL_SUPPORT_MAX      (1)
 #define CFG_INDOOR_CHANNEL_SUPPORT_DEFAULT  (0)
+
+/*
+ * <ini>
+ * g_mark_indoor_as_disable - Enable/Disable Indoor channel
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to mark the Indoor channel as
+ * disable when SAP start and revert it on SAP stop,
+ * so SAP will not turn on indoor channel and
+ * sta will not scan/associate and roam on indoor
+ * channels.
+ *
+ * Related: If g_mark_indoor_as_disable set, turn the
+ * indoor channels to disable and update Wiphy & fw.
+ *
+ * Supported Feature: SAP/STA
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_MARK_INDOOR_AS_DISABLE_NAME     "g_mark_indoor_as_disable"
+#define CFG_MARK_INDOOR_AS_DISABLE_MIN      (0)
+#define CFG_MARK_INDOOR_AS_DISABLE_MAX      (1)
+#define CFG_MARK_INDOOR_AS_DISABLE_DEFAULT  (0)
 
 /*
  * Force softap to 11n, when gSapForce11NFor11AC is set to 1 from ini
@@ -11766,6 +11898,9 @@ struct hdd_config {
 	/* Vowifi 11r params */
 	bool fFTResourceReqSupported;
 
+	/* Bitmap for operating voltage corner mode */
+	uint32_t vc_mode_cfg_bitmap;
+
 	uint16_t nNeighborScanPeriod;
 	uint16_t neighbor_scan_min_period;
 	uint8_t nNeighborLookupRssiThreshold;
@@ -12067,6 +12202,7 @@ struct hdd_config {
 	uint8_t retryLimitOne;
 	uint8_t retryLimitTwo;
 	bool enableSSR;
+	bool enable_data_stall_det;
 	uint32_t cfgMaxMediumTime;
 	bool enableVhtFor24GHzBand;
 	bool enable_sap_vendor_vht;
@@ -12288,6 +12424,7 @@ struct hdd_config {
 	bool tso_enable;
 	bool lro_enable;
 	bool flow_steering_enable;
+	uint8_t max_msdus_per_rxinorderind;
 	bool active_mode_offload;
 	bool bpf_packet_filter_enable;
 	/* parameter for defer timer for enabling TDLS on p2p listen */
@@ -12312,6 +12449,7 @@ struct hdd_config {
 	bool ce_classify_enabled;
 	uint32_t dual_mac_feature_disable;
 	uint8_t dbs_scan_selection[CFG_DBS_SCAN_PARAM_LENGTH];
+	uint32_t sta_sap_scc_on_dfs_chan;
 	bool     tx_chain_mask_cck;
 	uint8_t  tx_chain_mask_1ss;
 	bool smart_chainmask_enabled;
@@ -12397,6 +12535,8 @@ struct hdd_config {
 	uint32_t tgt_gtx_usr_cfg;
 	enum cfg_sub_20_channel_width enable_sub_20_channel_width;
 	bool indoor_channel_support;
+	/* control marking indoor channel passive to disable */
+	bool disable_indoor_channel;
 	/* parameter to force sap into 11n */
 	bool sap_force_11n_for_11ac;
 	uint16_t sap_tx_leakage_threshold;

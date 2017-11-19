@@ -405,7 +405,7 @@ int wlan_hdd_send_avoid_freq_event(hdd_context_t *pHddCtx,
  *
  * Return: 0 on success or failure reason
  */
-int wlan_hdd_send_hang_reason_event(hdd_context_t *pHddCtx, uint32_t reason);
+int wlan_hdd_send_hang_reason_event(hdd_context_t *hdd_ctx, uint32_t reason);
 #ifdef FEATURE_WLAN_EXTSCAN
 void wlan_hdd_cfg80211_extscan_callback(void *ctx,
 					const uint16_t evType, void *pMsg);
@@ -531,14 +531,6 @@ static inline void wlan_hdd_cfg80211_indicate_disconnect(struct net_device *dev,
 #endif
 struct cfg80211_bss *wlan_hdd_cfg80211_inform_bss_frame(hdd_adapter_t *pAdapter,
 						tSirBssDescription *bss_desc);
-
-/*
- * As of 4.7, ieee80211_band is removed; add shims so we can reference
- * nl80211_band instead
-  */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 7, 0))
-#define NUM_NL80211_BANDS ((enum nl80211_band)IEEE80211_NUM_BANDS)
-#endif
 
 /**
  * hdd_lost_link_info_cb() - callback function to get lost link information
