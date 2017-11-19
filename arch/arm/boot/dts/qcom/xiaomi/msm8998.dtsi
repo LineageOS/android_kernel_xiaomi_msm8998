@@ -54,6 +54,12 @@
 			no-map;
 			reg = <0 0x8b200000 0 0x1e00000>;
  		};
+
+		ramoops_mem: ramoops_region@b0000000 {
+			compatible = "removed-dma-pool";
+			no-map;
+			reg = <0 0xb0000000 0 0x200000>;
+		};
 	};
 };
 
@@ -98,6 +104,15 @@
 			qcom,sensor-type = "llm";
 			qcom,sensor-name = "limits_sensor-02";
 		};
+	};
+
+	ramoops {
+		compatible = "ramoops";
+		status = "ok";
+		memory-region = <&ramoops_mem>;
+		console-size = <0x0 0x100000>; /* 1024 KB */
+		pmsg-size = <0x0 0x80000>; /* 512 KB */
+		record-size = <0x0 0x20000>; /* 128 KB */
 	};
 };
 
