@@ -11728,6 +11728,9 @@ static int __con_mode_handler(const char *kmessage, struct kernel_param *kp,
 		goto reset_flags;
 	}
 
+	if (!cds_wait_for_external_threads_completion(__func__))
+		hdd_warn("Waiting for monitor mode: External threads are active");
+
 	ret = hdd_wlan_stop_modules(hdd_ctx, true);
 	if (ret) {
 		hdd_err("Stop wlan modules failed");
