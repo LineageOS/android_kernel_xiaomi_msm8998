@@ -2131,6 +2131,10 @@ struct hdd_context_s {
 	uint8_t active_ac;
 	qdf_wake_lock_t monitor_mode_wakelock;
 	struct qdf_mac_addr hw_macaddr;
+#ifdef WLAN_POWER_DEBUGFS
+	/* mutex lock to block concurrent access */
+	struct mutex power_stats_lock;
+#endif
 };
 
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,
