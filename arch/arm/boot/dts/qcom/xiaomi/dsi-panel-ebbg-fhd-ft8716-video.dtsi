@@ -93,24 +93,5 @@
 		qcom,mdss-pan-physical-height-dimension = <114>;
 		qcom,cont-splash-enabled;
 		qcom,mdss-dsi-tx-eot-append;
-		qcom,mdss-panel-on-dimming-delay = <120>;
-		qcom,dispparam-enabled;
-		qcom,mdss-night-brightness = <7 25 43 61>;
-		qcom,mdss-dsi-dispparam-cabcon-command = [15 01 00 00 00 00 02 55 02];
-		qcom,mdss-dsi-dispparam-cabcguion-command = [15 01 00 00 01 00 02 55 01];
-		qcom,mdss-dsi-dispparam-cabcstillon-command = [15 01 00 00 01 00 02 55 02];
-		qcom,mdss-dsi-dispparam-cabcmovieon-command = [15 01 00 00 01 00 02 55 03];
-		qcom,mdss-dsi-dispparam-cabcoff-command = [
-				39 01 00 00 01 00 02 55 00
-		];
-		qcom,mdss-dsi-dispparam-dimmingon-command = [
-				39 01 00 00 01 00 02 53 2C
-		];
-		qcom,mdss-dsi-dispparam-idleon-command = [
-				39 01 00 00 01 00 02 39 00
-		];
-		qcom,mdss-dsi-dispparam-idleoff-command = [
-				39 01 00 00 01 00 02 38 00
-		];
 	};
 };
