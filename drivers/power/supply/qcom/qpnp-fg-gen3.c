@@ -3832,6 +3832,10 @@ static int fg_hw_init(struct fg_chip *chip)
 		pr_err("Error in writing ESR broad filter, rc=%d\n", rc);
 		return rc;
 	}
+	rc = fg_sram_masked_write(chip, 19, 0, 0x08, 0x08, FG_IMA_DEFAULT);
+	if (rc < 0) {
+		pr_err("Error in writing cc soc auto clear rc=%d\n", rc);
+	}
 
 	fg_encode(chip->sp, FG_SRAM_ESR_PULSE_THRESH,
 		chip->dt.esr_pulse_thresh_ma, buf);
