@@ -407,6 +407,8 @@ struct synaptics_rmi4_data {
 	bool short_test_extend;
 	bool disable_data_dump;
 	bool dump_flags;
+	bool enable_reversed_keys;
+
 	int (*reset_device)(struct synaptics_rmi4_data *rmi4_data,
 			bool rebuild);
 	int (*irq_enable)(struct synaptics_rmi4_data *rmi4_data, bool enable,
