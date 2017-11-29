@@ -236,6 +236,12 @@ static ssize_t synaptics_rmi4_irq_enable_show(struct device *dev,
 static ssize_t synaptics_rmi4_irq_enable_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count);
 
+static ssize_t synaptics_rmi4_reversed_keys_show(struct device *dev,
+		struct device_attribute *attr, char *buf);
+
+static ssize_t synaptics_rmi4_reversed_keys_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count);
+
 static ssize_t synaptics_rmi4_panel_color_show(struct device *dev,
 		struct device_attribute *attr, char *buf);
 
@@ -771,6 +777,9 @@ static struct device_attribute attrs[] = {
 	__ATTR(irq_enable, (S_IRUGO | S_IWUSR),
 			synaptics_rmi4_irq_enable_show,
 			synaptics_rmi4_irq_enable_store),
+	__ATTR(reversed_keys_enable, (S_IRUGO | S_IWUSR),
+			synaptics_rmi4_reversed_keys_show,
+			synaptics_rmi4_reversed_keys_store),
 };
 
 #if defined(CONFIG_SECURE_TOUCH)
@@ -1215,6 +1224,34 @@ static ssize_t synaptics_rmi4_irq_enable_store(struct device *dev,
 		enable_irq(rmi4_data->irq);
 	else
 		disable_irq(rmi4_data->irq);
+
+	return count;
+}
+
+static ssize_t synaptics_rmi4_reversed_keys_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct synaptics_rmi4_data *rmi4_data = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n",
+			rmi4_data->enable_reversed_keys);
+}
+
+static ssize_t synaptics_rmi4_reversed_keys_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int input;
+	struct synaptics_rmi4_data *rmi4_data = dev_get_drvdata(dev);
+
+	if (sscanf(buf, "%u", &input) != 1)
+		return -EINVAL;
+
+	input = input > 0 ? 1 : 0;
+
+	if (rmi4_data->enable_reversed_keys == input)
+		return count;
+
+	rmi4_data->enable_reversed_keys = input;
 
 	return count;
 }
@@ -1767,6 +1804,19 @@ static int synaptics_rmi4_f12_abs_report(struct synaptics_rmi4_data *rmi4_data,
 	return touch_count;
 }
 
+static void synaptics_rmi4_report_key(struct synaptics_rmi4_data *rmi4_data,
+		int key, int status)
+{
+	if (rmi4_data->enable_reversed_keys) {
+		if (key == KEY_MENU)
+			key = KEY_BACK;
+		else if (key == KEY_BACK)
+			key =  KEY_MENU;
+	}
+
+	input_report_key(rmi4_data->input_dev, key, status);
+}
+
 static void synaptics_rmi4_f1a_report(struct synaptics_rmi4_data *rmi4_data,
 		struct synaptics_rmi4_fn *fhandler)
 {
@@ -1836,14 +1886,14 @@ static void synaptics_rmi4_f1a_report(struct synaptics_rmi4_data *rmi4_data,
 			}
 
 			touch_count++;
-			input_report_key(rmi4_data->input_dev,
+			synaptics_rmi4_report_key(rmi4_data,
 					f1a->button_map[button],
 					status);
 		} else {
 			if (before_2d_status[button] == 1) {
 				before_2d_status[button] = 0;
 				touch_count++;
-				input_report_key(rmi4_data->input_dev,
+				synaptics_rmi4_report_key(rmi4_data,
 						f1a->button_map[button],
 						status);
 			} else {
@@ -1855,7 +1905,7 @@ static void synaptics_rmi4_f1a_report(struct synaptics_rmi4_data *rmi4_data,
 		}
 #else
 		touch_count++;
-		input_report_key(rmi4_data->input_dev,
+		synaptics_rmi4_report_key(rmi4_data,
 				f1a->button_map[button],
 				status);
 #endif
@@ -4930,6 +4980,7 @@ static int synaptics_rmi4_probe(struct platform_device *pdev)
 	rmi4_data->irq_enabled = false;
 	rmi4_data->fingers_on_2d = false;
 	rmi4_data->wakeup_en = false;
+	rmi4_data->enable_reversed_keys = false;
 
 	rmi4_data->reset_device = synaptics_rmi4_reset_device;
 	rmi4_data->irq_enable = synaptics_rmi4_irq_enable;
