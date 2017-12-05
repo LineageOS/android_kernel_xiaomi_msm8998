@@ -3245,34 +3245,6 @@ int hdd_ipa_uc_ol_deinit(hdd_context_t *hdd_ctx)
 }
 
 /**
- * hdd_ipa_uc_ol_deinit() - Disconnect IPA TX and RX pipes
- * @hdd_ctx: Global HDD context
- *
- * Return: 0 on success, negativer errno on error
- */
-int hdd_ipa_uc_ol_deinit(hdd_context_t *hdd_ctx)
-{
-	struct hdd_ipa_priv *hdd_ipa = hdd_ctx->hdd_ipa;
-	int ret = 0;
-
-	if (!hdd_ipa_uc_is_enabled(hdd_ctx))
-		return ret;
-
-	if (true == hdd_ipa->uc_loaded) {
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO,
-			    "%s: Disconnect TX PIPE tx_pipe_handle=0x%x",
-			    __func__, hdd_ipa->tx_pipe_handle);
-		ret = ipa_disconnect_wdi_pipe(hdd_ipa->tx_pipe_handle);
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO,
-			    "%s: Disconnect RX PIPE rx_pipe_handle=0x%x",
-			    __func__, hdd_ipa->rx_pipe_handle);
-		ret = ipa_disconnect_wdi_pipe(hdd_ipa->rx_pipe_handle);
-	}
-
-	return ret;
-}
-
-/**
  * __hdd_ipa_uc_force_pipe_shutdown() - Force shutdown IPA pipe
  * @hdd_ctx: hdd main context
  *
