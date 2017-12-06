@@ -23,7 +23,6 @@
 #define __SOUND_ASOUND_H
 
 #include <linux/ioctl.h>
-#include <linux/time.h>
 #include <asm/byteorder.h>
 
 #ifdef  __LITTLE_ENDIAN
