@@ -8924,7 +8924,7 @@ int wlan_hdd_request_pre_cac(uint8_t channel)
 
 	status = wlan_hdd_cfg80211_start_bss(pre_cac_adapter, NULL,
 			PRE_CAC_SSID, qdf_str_len(PRE_CAC_SSID),
-			NL80211_HIDDEN_SSID_NOT_IN_USE, false, false);
+			NL80211_HIDDEN_SSID_NOT_IN_USE, false);
 	if (QDF_IS_STATUS_ERROR(status)) {
 		hdd_err("start bss failed");
 		goto stop_close_pre_cac_adapter;
@@ -16921,6 +16921,7 @@ static int wlan_hdd_disconnect(hdd_adapter_t *pAdapter, u16 reason)
 	hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 	eConnectionState prev_conn_state;
 	tHalHandle hal = WLAN_HDD_GET_HAL_CTX(pAdapter);
+	uint32_t wait_time = WLAN_WAIT_TIME_DISCONNECT;
 
 	ENTER();
 
@@ -16979,7 +16980,14 @@ static int wlan_hdd_disconnect(hdd_adapter_t *pAdapter, u16 reason)
 			prev_conn_state != eConnectionState_Connecting) {
 		hdd_debug("status = %d, already disconnected", status);
 		result = 0;
-		goto disconnected;
+		/*
+		 * Wait here instead of returning directly. This will block the
+		 * next connect command and allow processing of the disconnect
+		 * in SME else we might hit some race conditions leading to SME
+		 * and HDD out of sync. As disconnect is already in progress,
+		 * wait here for 1 sec instead of 5 sec.
+		 */
+		wait_time = WLAN_WAIT_DISCONNECT_ALREADY_IN_PROGRESS;
 	} else if (QDF_STATUS_CMD_NOT_QUEUED == status) {
 		/*
 		 * Wait here instead of returning directly, this will block the
@@ -16996,8 +17004,7 @@ static int wlan_hdd_disconnect(hdd_adapter_t *pAdapter, u16 reason)
 	}
 wait_for_disconnect:
 	rc = wait_for_completion_timeout(&pAdapter->disconnect_comp_var,
-					 msecs_to_jiffies
-						 (WLAN_WAIT_TIME_DISCONNECT));
+					 msecs_to_jiffies(wait_time));
 
 	if (!rc && (QDF_STATUS_CMD_NOT_QUEUED != status)) {
 		hdd_err("Failed to disconnect, timed out");

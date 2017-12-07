@@ -458,6 +458,12 @@ static int __hdd_netdev_notifier_call(struct notifier_block *nb,
 		QDF_ASSERT(0);
 		return NOTIFY_DONE;
 	}
+
+	if (hdd_ctx->driver_status == DRIVER_MODULES_CLOSED) {
+		hdd_err("%s: Driver module is closed", __func__);
+		return NOTIFY_DONE;
+	}
+
 	if (cds_is_driver_recovering() || cds_is_driver_in_bad_state())
 		return NOTIFY_DONE;
 
@@ -502,6 +508,14 @@ static int __hdd_netdev_notifier_call(struct notifier_block *nb,
 			cds_flush_work(&adapter->scan_block_work);
 			hdd_debug("Scan is not Pending from user");
 		}
+		/*
+		 * After NETDEV_GOING_DOWN, kernel calls hdd_stop.Irrespective
+		 * of return status of hdd_stop call, kernel resets the IFF_UP
+		 * flag after which driver does not send the cfg80211_scan_done.
+		 * Ensure to cleanup the scan queue in NETDEV_GOING_DOWN
+		 */
+
+		hdd_cleanup_scan_queue(hdd_ctx, adapter);
 		break;
 
 	default:
@@ -4978,7 +4992,8 @@ QDF_STATUS hdd_start_all_adapters(hdd_context_t *hdd_ctx)
 
 			hdd_register_tx_flow_control(adapter,
 					hdd_tx_resume_timer_expired_handler,
-					hdd_tx_resume_cb);
+					hdd_tx_resume_cb,
+					hdd_tx_flow_control_is_pause);
 			if (adapter->device_mode == QDF_STA_MODE) {
 				hdd_debug("Sending the Lpass start notification after re_init");
 				hdd_lpass_notify_start(hdd_ctx, adapter);
@@ -5710,6 +5725,8 @@ static void hdd_roc_context_destroy(hdd_context_t *hdd_ctx)
  */
 static int hdd_context_deinit(hdd_context_t *hdd_ctx)
 {
+	qdf_wake_lock_destroy(&hdd_ctx->monitor_mode_wakelock);
+
 	wlan_hdd_cfg80211_deinit(hdd_ctx->wiphy);
 
 	hdd_roc_context_destroy(hdd_ctx);
@@ -5851,11 +5868,13 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 		 * the expectation is that by the time Request Full Power has
 		 * completed, all scans will be cancelled
 		 */
-		hdd_cleanup_scan_queue(hdd_ctx);
+		hdd_cleanup_scan_queue(hdd_ctx, NULL);
 		hdd_abort_mac_scan_all_adapters(hdd_ctx);
 		hdd_abort_sched_scan_all_adapters(hdd_ctx);
 		hdd_stop_all_adapters(hdd_ctx);
 	}
+
+	unregister_netdevice_notifier(&hdd_netdev_notifier);
 
 	/*
 	 * Close the scheduler before calling cds_close to make sure
@@ -5872,6 +5891,12 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 
 	qdf_nbuf_deinit_replenish_timer();
 
+	if (QDF_GLOBAL_MONITOR_MODE ==  hdd_get_conparam()) {
+		hdd_info("Release wakelock for monitor mode!");
+		qdf_wake_lock_release(&hdd_ctx->monitor_mode_wakelock,
+				WIFI_POWER_EVENT_WAKELOCK_MONITOR_MODE);
+	}
+
 	qdf_spinlock_destroy(&hdd_ctx->hdd_adapter_lock);
 	qdf_spinlock_destroy(&hdd_ctx->sta_update_info_lock);
 	qdf_spinlock_destroy(&hdd_ctx->connection_status_lock);
@@ -5886,9 +5911,6 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 
 	hdd_runtime_suspend_context_deinit(hdd_ctx);
 	hdd_close_all_adapters(hdd_ctx, false);
-
-	unregister_netdevice_notifier(&hdd_netdev_notifier);
-
 	hdd_ipa_cleanup(hdd_ctx);
 
 	/* Free up RoC request queue and flush workqueue */
@@ -7728,6 +7750,9 @@ static int hdd_context_init(hdd_context_t *hdd_ctx)
 	if (ret)
 		goto roc_destroy;
 
+	qdf_wake_lock_create(&hdd_ctx->monitor_mode_wakelock,
+			     "monitor_mode_wakelock");
+
 	return 0;
 
 roc_destroy:
@@ -8020,7 +8045,8 @@ int hdd_start_station_adapter(hdd_adapter_t *adapter)
 
 	hdd_register_tx_flow_control(adapter,
 		hdd_tx_resume_timer_expired_handler,
-		hdd_tx_resume_cb);
+		hdd_tx_resume_cb,
+		hdd_tx_flow_control_is_pause);
 
 	EXIT();
 	return 0;
@@ -8049,7 +8075,8 @@ int hdd_start_ap_adapter(hdd_adapter_t *adapter)
 
 	hdd_register_tx_flow_control(adapter,
 		hdd_softap_tx_resume_timer_expired_handler,
-		hdd_softap_tx_resume_cb);
+		hdd_softap_tx_resume_cb,
+		hdd_tx_flow_control_is_pause);
 
 	EXIT();
 	return 0;
@@ -8848,6 +8875,28 @@ static int hdd_set_ani_enabled(hdd_context_t *hdd_ctx)
 }
 
 /**
+ * hdd_send_all_sme_action_ouis() - send all action oui extensions to firmware
+ * @hdd_ctx: pointer to hdd context
+ *
+ * Return: None
+ */
+static void hdd_send_all_sme_action_ouis(hdd_context_t *hdd_ctx)
+{
+	QDF_STATUS qdf_status;
+	uint32_t i;
+
+	if (!hdd_ctx->config->enable_action_oui)
+		return;
+
+	for (i = 0; i < WMI_ACTION_OUI_MAXIMUM_ID; i++) {
+		qdf_status = sme_send_action_oui(hdd_ctx->hHal, i);
+		/* print the error and continue for another action */
+		if (!QDF_IS_STATUS_SUCCESS(qdf_status))
+			hdd_err("Failed to send action OUI: %u", i);
+	}
+}
+
+/**
  * hdd_pre_enable_configure() - Configurations prior to cds_enable
  * @hdd_ctx:	HDD context
  *
@@ -8884,6 +8933,8 @@ static int hdd_pre_enable_configure(hdd_context_t *hdd_ctx)
 		ret = qdf_status_to_os_return(status);
 		goto out;
 	}
+
+	hdd_set_all_sme_action_ouis(hdd_ctx);
 
 	ret = sme_cli_set_command(0, WMI_PDEV_PARAM_TX_CHAIN_MASK_1SS,
 				  hdd_ctx->config->tx_chain_mask_1ss,
@@ -9479,6 +9530,8 @@ int hdd_configure_cds(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	if (0 != wlan_hdd_set_wow_pulse(hdd_ctx, true))
 		hdd_debug("Failed to set wow pulse");
 
+	hdd_send_all_sme_action_ouis(hdd_ctx);
+
 	return 0;
 
 hdd_features_deinit:
@@ -9511,6 +9564,8 @@ static int hdd_deconfigure_cds(hdd_context_t *hdd_ctx)
 	/* De-register the SME callbacks */
 	hdd_deregister_cb(hdd_ctx);
 	hdd_encrypt_decrypt_deinit(hdd_ctx);
+
+	sme_destroy_config(hdd_ctx->hHal);
 
 	/* De-init Policy Manager */
 	if (!QDF_IS_STATUS_SUCCESS(cds_deinit_policy_mgr())) {
@@ -11555,12 +11610,15 @@ static void hdd_cleanup_present_mode(hdd_context_t *hdd_ctx,
 	driver_status = hdd_ctx->driver_status;
 
 	switch (curr_mode) {
-	case QDF_GLOBAL_MISSION_MODE:
 	case QDF_GLOBAL_MONITOR_MODE:
+		hdd_info("Release wakelock for monitor mode!");
+		qdf_wake_lock_release(&hdd_ctx->monitor_mode_wakelock,
+				      WIFI_POWER_EVENT_WAKELOCK_MONITOR_MODE);
+	case QDF_GLOBAL_MISSION_MODE:
 	case QDF_GLOBAL_FTM_MODE:
 		if (driver_status != DRIVER_MODULES_CLOSED) {
 			hdd_abort_mac_scan_all_adapters(hdd_ctx);
-			hdd_cleanup_scan_queue(hdd_ctx);
+			hdd_cleanup_scan_queue(hdd_ctx, NULL);
 			hdd_stop_all_adapters(hdd_ctx);
 		}
 		hdd_deinit_all_adapters(hdd_ctx, false);
@@ -11720,6 +11778,12 @@ static int __con_mode_handler(const char *kmessage, struct kernel_param *kp,
 			ret = -EINVAL;
 			goto reset_flags;
 		}
+	}
+
+	if (con_mode == QDF_GLOBAL_MONITOR_MODE) {
+		hdd_info("Acquire wakelock for monitor mode!");
+		qdf_wake_lock_acquire(&hdd_ctx->monitor_mode_wakelock,
+				      WIFI_POWER_EVENT_WAKELOCK_MONITOR_MODE);
 	}
 
 	hdd_info("Mode successfully changed to %s", kmessage);

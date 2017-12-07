@@ -4171,7 +4171,8 @@ static inline void wma_update_target_services(tp_wma_handle wh,
 	if (WMI_SERVICE_IS_ENABLED(wh->wmi_service_bitmap, WMI_SERVICE_EXTSCAN))
 		g_fw_wlan_feat_caps |= (1 << EXTENDED_SCAN);
 #endif /* FEATURE_WLAN_EXTSCAN */
-
+	cfg->lte_coex_ant_share = WMI_SERVICE_IS_ENABLED(wh->wmi_service_bitmap,
+					WMI_SERVICE_LTE_ANT_SHARE_SUPPORT);
 #ifdef FEATURE_WLAN_TDLS
 	/* Enable TDLS */
 	if (WMI_SERVICE_IS_ENABLED(wh->wmi_service_bitmap, WMI_SERVICE_TDLS)) {
@@ -8507,3 +8508,16 @@ QDF_STATUS wma_config_bmiss_bcnt_params(uint32_t vdev_id, uint32_t first_cnt,
 	return status;
 }
 
+QDF_STATUS wma_send_action_oui(WMA_HANDLE handle,
+			       struct wmi_action_oui *action_oui)
+{
+	tp_wma_handle wma_handle = (tp_wma_handle)handle;
+
+	if (wmi_unified_send_action_oui_cmd(wma_handle->wmi_handle,
+					    action_oui)) {
+		WMA_LOGE(FL("WMI_PDEV_CONFIG_VENDOR_OUI_ACTION send fail"));
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}

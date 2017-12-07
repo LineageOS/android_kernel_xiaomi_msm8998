@@ -1611,7 +1611,8 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 
 			hdd_register_tx_flow_control(pHostapdAdapter,
 				hdd_softap_tx_resume_timer_expired_handler,
-				hdd_softap_tx_resume_cb);
+				hdd_softap_tx_resume_cb,
+				hdd_tx_flow_control_is_pause);
 
 			/* @@@ need wep logic here to set privacy bit */
 			qdf_status =
@@ -7758,8 +7759,7 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 				       struct cfg80211_beacon_data *params,
 				       const u8 *ssid, size_t ssid_len,
 				       enum nl80211_hidden_ssid hidden_ssid,
-				       bool check_for_concurrency,
-				       bool update_beacon)
+				       bool check_for_concurrency)
 {
 	tsap_Config_t *pConfig;
 	beacon_data_t *pBeacon = NULL;
@@ -7787,11 +7787,6 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 	uint8_t ignore_cac = 0;
 
 	ENTER();
-
-	if (!update_beacon && cds_is_connection_in_progress(NULL, NULL)) {
-		hdd_err("Can't start BSS: connection is in progress");
-		return -EINVAL;
-	}
 
 	disable_fw_tdls_state = true;
 	wlan_hdd_check_conc_and_update_tdls_state(pHddCtx,
@@ -8726,17 +8721,13 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 
 	pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 	status = wlan_hdd_validate_context(pHddCtx);
+
 	if (0 != status)
 		return status;
 
 	hdd_debug("pAdapter = %pK, Device mode %s(%d) sub20 %d",
 		pAdapter, hdd_device_mode_to_string(pAdapter->device_mode),
 		pAdapter->device_mode, cds_is_sub_20_mhz_enabled());
-
-	if (cds_is_connection_in_progress(NULL, NULL)) {
-		hdd_err("Can't start BSS: connection is in progress");
-		return -EBUSY;
-	}
 
 	if (cds_is_hw_mode_change_in_progress()) {
 		status = qdf_wait_for_connection_update();
@@ -8909,7 +8900,7 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 			wlan_hdd_cfg80211_start_bss(pAdapter,
 				&params->beacon,
 				params->ssid, params->ssid_len,
-				params->hidden_ssid, true, false);
+				params->hidden_ssid, true);
 
 		if (status != 0) {
 			hdd_err("Error Start bss Failed");
@@ -9036,7 +9027,7 @@ static int __wlan_hdd_cfg80211_change_beacon(struct wiphy *wiphy,
 	pAdapter->sessionCtx.ap.beacon = new;
 	hdd_debug("update beacon for P2P GO/SAP");
 	status = wlan_hdd_cfg80211_start_bss(pAdapter, params, NULL,
-					0, 0, false, true);
+					0, 0, false);
 
 	EXIT();
 	return status;
