@@ -2060,6 +2060,13 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		return -EINVAL;
 	}
 
+	if (QDF_TIMER_STATE_RUNNING ==
+	    qdf_mc_timer_get_current_state(&hdd_ctx->iface_change_timer)) {
+
+		hdd_debug("Interface change Timer running Stop timer");
+		qdf_mc_timer_stop(&hdd_ctx->iface_change_timer);
+	}
+
 	mutex_lock(&hdd_ctx->iface_change_lock);
 	if (hdd_ctx->driver_status == DRIVER_MODULES_ENABLED) {
 		hdd_info("Driver modules already Enabled");
@@ -2069,13 +2076,6 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 	}
 
 	hdd_ctx->start_modules_in_progress = true;
-
-	if (QDF_TIMER_STATE_RUNNING ==
-	    qdf_mc_timer_get_current_state(&hdd_ctx->iface_change_timer)) {
-
-		hdd_debug("Interface change Timer running Stop timer");
-		qdf_mc_timer_stop(&hdd_ctx->iface_change_timer);
-	}
 
 	switch (hdd_ctx->driver_status) {
 	case DRIVER_MODULES_UNINITIALIZED:
