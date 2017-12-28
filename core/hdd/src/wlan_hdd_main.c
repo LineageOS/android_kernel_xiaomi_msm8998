@@ -1613,28 +1613,11 @@ void hdd_update_tgt_cfg(void *context, void *param)
 
 	/* This can be extended to other configurations like ht, vht cap... */
 
-	if (!qdf_is_macaddr_zero(&cfg->hw_macaddr)) {
-		hdd_update_macaddr(hdd_ctx->config, cfg->hw_macaddr);
-		hdd_ctx->update_mac_addr_to_fw = false;
-	} else {
-		static struct qdf_mac_addr default_mac_addr = {
-			{0x00, 0x0A, 0xF5, 0x89, 0x89, 0xFF}
-		};
-		if (qdf_is_macaddr_equal(&hdd_ctx->config->intfMacAddr[0],
-					 &default_mac_addr)) {
-			if (hdd_generate_macaddr_auto(hdd_ctx) != 0)
-				hdd_warn("Fail to auto-generate MAC, using MAC from ini file "
-					MAC_ADDRESS_STR,
-					MAC_ADDR_ARRAY(hdd_ctx->config->
-						       intfMacAddr[0].bytes));
-		} else {
-			hdd_warn("Invalid MAC passed from target, using MAC from ini file "
-				MAC_ADDRESS_STR,
-				MAC_ADDR_ARRAY(hdd_ctx->config->
-					       intfMacAddr[0].bytes));
-		}
-		hdd_ctx->update_mac_addr_to_fw = true;
-	}
+	if (!qdf_is_macaddr_zero(&cfg->hw_macaddr))
+		qdf_mem_copy(&hdd_ctx->hw_macaddr, &cfg->hw_macaddr,
+			     QDF_MAC_ADDR_SIZE);
+	else
+		hdd_info("hw_mac is zero");
 
 	hdd_ctx->target_fw_version = cfg->target_fw_version;
 	hdd_ctx->target_fw_vers_ext = cfg->target_fw_vers_ext;
@@ -8809,6 +8792,7 @@ static void hdd_initialize_mac_address(hdd_context_t *hdd_ctx)
 {
 	QDF_STATUS status;
 	int ret;
+	bool update_mac_addr_to_fw = true;
 
 	ret = hdd_platform_wlan_mac(hdd_ctx);
 	if (ret == 0)
@@ -8825,7 +8809,33 @@ static void hdd_initialize_mac_address(hdd_context_t *hdd_ctx)
 	hdd_info("MAC is not programmed in wlan_mac.bin ret %d, use default MAC",
 		 status);
 
-	if (hdd_ctx->update_mac_addr_to_fw) {
+	/* Use fw provided MAC */
+	if (!qdf_is_macaddr_zero(&hdd_ctx->hw_macaddr)) {
+		hdd_update_macaddr(hdd_ctx->config, hdd_ctx->hw_macaddr);
+		update_mac_addr_to_fw = false;
+	} else {
+		static struct qdf_mac_addr default_mac_addr = {
+				{0x00, 0x0A, 0xF5, 0x89, 0x89, 0xFF}
+			};
+		if (qdf_is_macaddr_equal(&hdd_ctx->config->intfMacAddr[0],
+					 &default_mac_addr)) {
+			if (hdd_generate_macaddr_auto(hdd_ctx) != 0)
+				hdd_warn("Fail to auto-generate MAC"
+					 "using MAC from ini file "
+					 MAC_ADDRESS_STR,
+					 MAC_ADDR_ARRAY(hdd_ctx->config->
+							intfMacAddr[0].bytes));
+			} else {
+			hdd_warn("Invalid MAC passed from target"
+				 "using MAC from ini file "
+				 MAC_ADDRESS_STR,
+				 MAC_ADDR_ARRAY(hdd_ctx->config->
+						intfMacAddr[0].bytes));
+		}
+		update_mac_addr_to_fw = true;
+	}
+
+	if (update_mac_addr_to_fw) {
 		ret = hdd_update_mac_addr_to_fw(hdd_ctx);
 		if (ret != 0) {
 			hdd_err("MAC address out-of-sync, ret:%d", ret);

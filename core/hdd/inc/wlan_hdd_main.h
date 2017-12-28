@@ -1978,7 +1978,6 @@ struct hdd_context_s {
 	bool napi_enable;
 	bool stop_modules_in_progress;
 	bool start_modules_in_progress;
-	bool update_mac_addr_to_fw;
 	struct acs_dfs_policy acs_policy;
 	uint16_t wmi_max_len;
 	struct suspend_resume_stats suspend_resume_stats;
@@ -2023,6 +2022,7 @@ struct hdd_context_s {
 	struct sta_ap_intf_check_work_ctx *sta_ap_intf_check_work_info;
 	uint8_t active_ac;
 	qdf_wake_lock_t monitor_mode_wakelock;
+	struct qdf_mac_addr hw_macaddr;
 };
 
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,
