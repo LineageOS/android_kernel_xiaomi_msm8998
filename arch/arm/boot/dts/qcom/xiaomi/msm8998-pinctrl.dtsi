@@ -11,7 +11,7 @@
  */
 
 &tlmm {
-	cam_sensor_mclk0_active_chiron {
+	cam_sensor_mclk0_active_chiron: cam_sensor_mclk0_active_chiron {
 		mux {
 			pins = "gpio13";
 			function = "cam_mclk";
@@ -24,7 +24,7 @@
 		};
 	};
 
-	cam_sensor_mclk0_suspend_chiron {
+	cam_sensor_mclk0_suspend_chiron: cam_sensor_mclk0_suspend_chiron {
 		mux {
 			pins = "gpio13";
 			function = "cam_mclk";
@@ -37,7 +37,7 @@
 		};
 	};
 
-	cam_sensor_mclk1_active_chiron {
+	cam_sensor_mclk1_active_chiron: cam_sensor_mclk1_active_chiron {
 		mux {
 			pins = "gpio14";
 			function = "cam_mclk";
@@ -50,7 +50,7 @@
 		};
 	};
 
-	cam_sensor_mclk1_suspend_chiron {
+	cam_sensor_mclk1_suspend_chiron: cam_sensor_mclk1_suspend_chiron {
 		mux {
 			pins = "gpio14";
 			function = "cam_mclk";
@@ -321,11 +321,11 @@
 
 &cam_sensor_rear_suspend {
 	mux {
-		pins = "gpio30","gpio80";
+		pins = "gpio30", "gpio80";
 	};
 
 	config {
-		pins = "gpio30","gpio80";
+		pins = "gpio30", "gpio80";
 	};
 };
 
@@ -374,21 +374,21 @@
 
 &cam_sensor_front_active {
 	mux {
-		pins = "gpio28", "gpio27","gpio9";
+		pins = "gpio28", "gpio27", "gpio9";
 	};
 
 	config {
-		pins = "gpio28", "gpio27","gpio9";
+		pins = "gpio28", "gpio27", "gpio9";
 	};
 };
 
 &cam_sensor_front_suspend {
 	mux {
-		pins = "gpio28", "gpio27","gpio9";
+		pins = "gpio28", "gpio27", "gpio9";
 	};
 
 	config {
-		pins = "gpio28", "gpio27","gpio9";
+		pins = "gpio28", "gpio27", "gpio9";
 	};
 };
 

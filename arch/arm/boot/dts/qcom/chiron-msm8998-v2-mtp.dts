@@ -13,12 +13,12 @@
 
 /dts-v1/;
 
-#include "msm8998-v2.1.dtsi"
-#include "xiaomi/msm8998-v2.1.dtsi"
-#include "xiaomi/sagit-msm8998-mtp.dtsi"
+#include "msm8998-v2.dtsi"
+#include "xiaomi/msm8998-v2.dtsi"
+#include "xiaomi/chiron-msm8998-mtp.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. MSM 8998 v2.1 MTP";
+	model = "Qualcomm Technologies, Inc. MSM 8998 v2 MTP";
 	compatible = "qcom,msm8998-mtp", "qcom,msm8998", "qcom,mtp";
-	qcom,board-id = <30 0>;
+	qcom,board-id = <32 0>;
 };
