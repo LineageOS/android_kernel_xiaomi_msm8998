@@ -21,4 +21,10 @@ config MACH_SAGIT
 	help
 	 Support for Xiaomi Mi6, codenamed sagit.
 
+config MACH_CHIRON
+	bool "chiron board"
+	select MACH_XIAOMI_MSM8998
+	help
+	 Support for Xiaomi Mi Mix2, codenamed chiron.
+
 endmenu
