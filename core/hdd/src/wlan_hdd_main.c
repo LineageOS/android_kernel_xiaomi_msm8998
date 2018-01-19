@@ -10985,7 +10985,6 @@ void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter, bool reinit)
 
 	if (0 != wlan_hdd_cfg80211_update_apies(ap_adapter)) {
 		hdd_err("SAP Not able to set AP IEs");
-		wlansap_reset_sap_config_add_ie(sap_config, eUPDATE_IE_ALL);
 		goto end;
 	}
 
@@ -11003,6 +11002,7 @@ void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter, bool reinit)
 		hdd_err("SAP Start failed");
 		goto end;
 	}
+	wlansap_reset_sap_config_add_ie(sap_config, eUPDATE_IE_ALL);
 	hdd_info("SAP Start Success");
 	set_bit(SOFTAP_BSS_STARTED, &ap_adapter->event_flags);
 	if (hostapd_state->bssState == BSS_START)
@@ -11011,6 +11011,7 @@ void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter, bool reinit)
 	hostapd_state->bCommit = true;
 
 end:
+	wlansap_reset_sap_config_add_ie(sap_config, eUPDATE_IE_ALL);
 	mutex_unlock(&hdd_ctx->sap_lock);
 	/* SAP context and beacon cleanup will happen during driver unload
 	 * in hdd_stop_adapter
