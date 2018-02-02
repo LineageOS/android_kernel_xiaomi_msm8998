@@ -785,6 +785,9 @@ static struct device_attribute attrs[] = {
 			synaptics_rmi4_reversed_keys_store),
 };
 
+bool capacitive_keys_enabled;
+EXPORT_SYMBOL(capacitive_keys_enabled);
+
 #if defined(CONFIG_SECURE_TOUCH)
 static DEVICE_ATTR(secure_touch_enable, (S_IRUGO | S_IWUSR | S_IWGRP), synaptics_secure_touch_enable_show, synaptics_secure_touch_enable_store);
 static DEVICE_ATTR(secure_touch, S_IRUGO, synaptics_secure_touch_show, NULL);
@@ -1147,6 +1150,7 @@ static ssize_t synaptics_rmi4_0dbutton_store(struct device *dev,
 	}
 
 	rmi4_data->button_0d_enabled = input;
+	capacitive_keys_enabled = input;
 
 	return count;
 }
@@ -3240,6 +3244,7 @@ static int synaptics_rmi4_f1a_init(struct synaptics_rmi4_data *rmi4_data,
 		goto error_exit;
 
 	rmi4_data->button_0d_enabled = 1;
+	capacitive_keys_enabled = 1;
 
 	return 0;
 
