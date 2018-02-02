@@ -79,6 +79,8 @@ static void gf_kernel_key_input(struct gf_device *gf_dev, struct gf_key *gf_key)
 	}
 }
 
+extern bool capacitive_keys_enabled;
+
 static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct gf_device *gf_dev = &gf;
@@ -104,8 +106,8 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			rc = -EFAULT;
 			break;
 		}
-
-		gf_kernel_key_input(gf_dev, &gf_key);
+		if (capacitive_keys_enabled)
+			gf_kernel_key_input(gf_dev, &gf_key);
 		break;
 	default:
 		pr_debug("%s: unsupport cmd:0x%x\n", __func__, cmd);
