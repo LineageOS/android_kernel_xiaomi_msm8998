@@ -36,21 +36,33 @@ static struct smb_params v1_params = {
 		.name	= "fast charge current",
 		.reg	= FAST_CHARGE_CURRENT_CFG_REG,
 		.min_u	= 0,
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+		.max_u	= 3300000,
+#else
 		.max_u	= 4500000,
+#endif
 		.step_u	= 25000,
 	},
 	.fv			= {
 		.name	= "float voltage",
 		.reg	= FLOAT_VOLTAGE_CFG_REG,
 		.min_u	= 3487500,
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+		.max_u	= 4400000,
+#else
 		.max_u	= 4920000,
+#endif
 		.step_u	= 7500,
 	},
 	.usb_icl		= {
 		.name	= "usb input current limit",
 		.reg	= USBIN_CURRENT_LIMIT_CFG_REG,
 		.min_u	= 0,
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+		.max_u	= 3000000,
+#else
 		.max_u	= 4800000,
+#endif
 		.step_u	= 25000,
 	},
 	.icl_stat		= {
@@ -64,7 +76,11 @@ static struct smb_params v1_params = {
 		.name	= "usb otg current limit",
 		.reg	= OTG_CURRENT_LIMIT_CFG_REG,
 		.min_u	= 250000,
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+		.max_u	= 1500000,
+#else
 		.max_u	= 2000000,
+#endif
 		.step_u	= 250000,
 	},
 	.dc_icl			= {
@@ -120,7 +136,11 @@ static struct smb_params v1_params = {
 		.name	= "jeita fcc reduction",
 		.reg	= JEITA_CCCOMP_CFG_REG,
 		.min_u	= 0,
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+		.max_u	= 3000000,
+#else
 		.max_u	= 1575000,
+#endif
 		.step_u	= 25000,
 	},
 	.freq_buck		= {
@@ -195,6 +215,9 @@ module_param_named(
 
 #define MICRO_1P5A		1500000
 #define MICRO_P1A		100000
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+#define MAX_DCP_ICL_UA		1800000
+#endif
 #define OTG_DEFAULT_DEGLITCH_TIME_MS	50
 #define MIN_WD_BARK_TIME		16
 #define DEFAULT_WD_BARK_TIME		64
@@ -240,6 +263,10 @@ static int smb2_parse_dt(struct smb2 *chip)
 				"qcom,usb-icl-ua", &chip->dt.usb_icl_ua);
 	if (rc < 0)
 		chip->dt.usb_icl_ua = -EINVAL;
+
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	chg->dcp_icl_ua = MAX_DCP_ICL_UA;
+#endif
 
 	rc = of_property_read_u32(node,
 				"qcom,otg-cl-ua", &chg->otg_cl_ua);
@@ -315,7 +342,9 @@ static int smb2_parse_dt(struct smb2 *chip)
 
 	chg->micro_usb_mode = of_property_read_bool(node, "qcom,micro-usb");
 
+#ifndef CONFIG_MACH_XIAOMI_MSM8998
 	chg->dcp_icl_ua = chip->dt.usb_icl_ua;
+#endif
 
 	chg->suspend_input_on_debug_batt = of_property_read_bool(node,
 					"qcom,suspend-input-on-debug-batt");
@@ -1021,7 +1050,7 @@ static int smb2_batt_get_prop(struct power_supply *psy,
 					      BATT_PROFILE_VOTER);
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+		val->intval = POWER_SUPPLY_TECHNOLOGY_LIPO;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_DONE:
 		rc = smblib_get_prop_batt_charge_done(chg, val);
@@ -1390,6 +1419,24 @@ static int smb2_configure_typec(struct smb_charger *chg)
 		return rc;
 	}
 
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	/* enable try.SINK mode */
+	rc = smblib_masked_write(chg, TYPE_C_CFG_3_REG, EN_TRYSINK_MODE_BIT,
+				EN_TRYSINK_MODE_BIT);
+	if (rc < 0) {
+		dev_err(chg->dev, "Couldn't set Type-C config rc=%d\n", rc);
+		return rc;
+	}
+
+	/* disable legacy cable IRQs */
+	rc = smblib_masked_write(chg, TYPE_C_CFG_3_REG,
+				TYPEC_NONCOMPLIANT_LEGACY_CABLE_INT_EN_BIT |
+				TYPEC_LEGACY_CABLE_INT_EN_BIT, 0);
+	if (rc < 0) {
+		dev_err(chg->dev, "Couldn't set Type-C config rc=%d\n", rc);
+		return rc;
+	}
+#else
 	/* disable try.SINK mode and legacy cable IRQs */
 	rc = smblib_masked_write(chg, TYPE_C_CFG_3_REG, EN_TRYSINK_MODE_BIT |
 				TYPEC_NONCOMPLIANT_LEGACY_CABLE_INT_EN_BIT |
@@ -1398,7 +1445,7 @@ static int smb2_configure_typec(struct smb_charger *chg)
 		dev_err(chg->dev, "Couldn't set Type-C config rc=%d\n", rc);
 		return rc;
 	}
-
+#endif
 	return rc;
 }
 
@@ -1565,6 +1612,27 @@ static int smb2_init_hw(struct smb2 *chip)
 			chg->micro_usb_mode, 0);
 	vote(chg->hvdcp_enable_votable, MICRO_USB_VOTER,
 			chg->micro_usb_mode, 0);
+
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	/* Operate the QC2.0 in 5V/9V mode i.e. Disable 12V */
+	rc = smblib_masked_write(chg, HVDCP_PULSE_COUNT_MAX_REG,
+				PULSE_COUNT_QC2P0_12V | PULSE_COUNT_QC2P0_9V,
+				PULSE_COUNT_QC2P0_9V);
+	if (rc < 0) {
+		dev_err(chg->dev,
+			"Couldn't configure QC2.0 to 9V rc=%d\n", rc);
+		return rc;
+	}
+	/* Operate the QC3.0 to limit vbus to 6.6v*/
+	rc = smblib_masked_write(chg, HVDCP_PULSE_COUNT_MAX_REG,
+				PULSE_COUNT_QC3P0_mask,
+				0x8);
+	if (rc < 0) {
+		dev_err(chg->dev,
+			"Couldn't configure QC3.0 to 6.6V rc=%d\n", rc);
+		return rc;
+	}
+#endif
 
 	/*
 	 * AICL configuration:
@@ -2298,6 +2366,11 @@ static int smb2_probe(struct platform_device *pdev)
 	/* set driver data before resources request it */
 	platform_set_drvdata(pdev, chip);
 
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	/* wakeup init should be done at the beginning of smb2_probe */
+	device_init_wakeup(chg->dev, true);
+#endif
+
 	rc = smb2_init_vbus_regulator(chip);
 	if (rc < 0) {
 		pr_err("Couldn't initialize vbus regulator rc=%d\n",
@@ -2413,7 +2486,9 @@ static int smb2_probe(struct platform_device *pdev)
 	}
 	batt_charge_type = val.intval;
 
+#ifndef CONFIG_MACH_XIAOMI_MSM8998
 	device_init_wakeup(chg->dev, true);
+#endif
 
 	pr_info("QPNP SMB2 probed successfully usb:present=%d type=%d batt:present = %d health = %d charge = %d\n",
 		usb_present, chg->real_charger_type,
