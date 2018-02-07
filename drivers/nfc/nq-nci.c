@@ -29,6 +29,10 @@
 #include <linux/compat.h>
 #endif
 
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+#include <linux/wakelock.h>
+#endif
+
 struct nqx_platform_data {
 	unsigned int irq_gpio;
 	unsigned int en_gpio;
@@ -48,6 +52,10 @@ MODULE_DEVICE_TABLE(of, msm_match_table);
 #define MAX_BUFFER_SIZE			(320)
 #define WAKEUP_SRC_TIMEOUT		(2000)
 #define MAX_RETRY_COUNT			3
+
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+static struct wake_lock fieldon_wl;
+#endif
 
 struct nqx_dev {
 	wait_queue_head_t	read_wq;
@@ -220,6 +228,13 @@ static ssize_t nfc_read(struct file *filp, char __user *buf,
 		ret = -EIO;
 		goto err;
 	}
+
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	if (((tmp[0] & 0xff) == 0x61) && ((tmp[1] & 0xff) == 0x07) && ((tmp[2] & 0xff) == 0x01)) {
+		wake_lock_timeout(&fieldon_wl, msecs_to_jiffies(3*1000));
+	}
+#endif
+
 #ifdef NFC_KERNEL_BU
 		dev_dbg(&nqx_dev->client->dev, "%s : NfcNciRx %x %x %x\n",
 			__func__, tmp[0], tmp[1], tmp[2]);
@@ -632,6 +647,7 @@ static const struct file_operations nfc_dev_fops = {
 #endif
 };
 
+#ifndef CONFIG_MACH_XIAOMI_MSM8998
 /* Check for availability of NQ_ NFC controller hardware */
 static int nfcc_hw_check(struct i2c_client *client, struct nqx_dev *nqx_dev)
 {
@@ -748,6 +764,7 @@ err_nfcc_hw_check:
 done:
 	return ret;
 }
+#endif
 
 /*
 	* Routine to enable clock.
@@ -1031,6 +1048,10 @@ static int nqx_probe(struct i2c_client *client,
 	mutex_init(&nqx_dev->read_mutex);
 	spin_lock_init(&nqx_dev->irq_enabled_lock);
 
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	wake_lock_init(&fieldon_wl, WAKE_LOCK_SUSPEND, "nfc_locker");
+#endif
+
 	nqx_dev->nqx_device.minor = MISC_DYNAMIC_MINOR;
 	nqx_dev->nqx_device.name = "nq-nci";
 	nqx_dev->nqx_device.fops = &nfc_dev_fops;
@@ -1051,6 +1072,7 @@ static int nqx_probe(struct i2c_client *client,
 	}
 	nqx_disable_irq(nqx_dev);
 
+#ifndef CONFIG_MACH_XIAOMI_MSM8998
 	/*
 	 * To be efficient we need to test whether nfcc hardware is physically
 	 * present before attempting further hardware initialisation.
@@ -1063,6 +1085,7 @@ static int nqx_probe(struct i2c_client *client,
 		/* We don't think there is hardware switch NFC OFF */
 		goto err_request_hw_check_failed;
 	}
+#endif
 
 	/* Register reboot notifier here */
 	r = register_reboot_notifier(&nfcc_notifier);
@@ -1153,6 +1176,11 @@ static int nqx_remove(struct i2c_client *client)
 	/* optional gpio, not sure was configured in probe */
 	if (nqx_dev->ese_gpio > 0)
 		gpio_free(nqx_dev->ese_gpio);
+
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	wake_lock_destroy(&fieldon_wl);
+#endif
+
 	gpio_free(nqx_dev->firm_gpio);
 	gpio_free(nqx_dev->irq_gpio);
 	gpio_free(nqx_dev->en_gpio);
