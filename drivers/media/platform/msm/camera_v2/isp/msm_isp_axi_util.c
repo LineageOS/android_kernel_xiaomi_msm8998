@@ -841,6 +841,9 @@ static void msm_isp_sync_dual_cam_frame_id(
 		return;
 	}
 
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	WARN_ON(ms_res->dual_sync_mode == MSM_ISP_DUAL_CAM_ASYNC);
+#endif
 	/* find highest frame id */
 	for (i = 0; i < MAX_VFE * VFE_SRC_MAX; i++) {
 		if (ms_res->src_info[i] == NULL)
@@ -937,6 +940,10 @@ void msm_isp_increment_frame_id(struct vfe_device *vfe_dev,
 							sync_state =
 							MSM_ISP_DUAL_CAM_ASYNC;
 				}
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+				ms_res->src_sof_mask = 0;
+				ms_res->active_src_mask = 1 << src_info->dual_hw_ms_info.index;
+#endif
 			}
 			ms_res->src_sof_mask |= (1 <<
 					src_info->dual_hw_ms_info.index);
