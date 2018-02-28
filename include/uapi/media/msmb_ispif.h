@@ -113,11 +113,17 @@ struct msm_ispif_param_data_ext {
 	struct msm_ispif_right_param_entry right_entries[MAX_PARAM_ENTRIES];
 	uint32_t stereo_enable;
 	uint16_t line_width[VFE_MAX];
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	uint32_t reserved_param;
+#endif
 };
 
 struct msm_ispif_param_data {
 	uint32_t num;
 	struct msm_ispif_params_entry entries[MAX_PARAM_ENTRIES];
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	uint32_t reserved_param;
+#endif
 };
 
 struct msm_isp_info {

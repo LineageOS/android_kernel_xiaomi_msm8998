@@ -21,9 +21,24 @@
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+#define EEPROM_NAME_MAX 32
+
+struct sensor_eeprom_name_t {
+	char name[4*EEPROM_NAME_MAX];
+};
+
+struct sensor_eeprom_name_t sensor_eeprom_name[3];
+uint8_t eeprom_name_count;
+#endif
+
 DEFINE_MSM_MUTEX(msm_eeprom_mutex);
 #ifdef CONFIG_COMPAT
 static struct v4l2_file_operations msm_eeprom_v4l2_subdev_fops;
+#endif
+
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+bool back_sensor_module_invalid = true;
 #endif
 
 /**
@@ -1521,7 +1536,9 @@ static int msm_eeprom_config32(struct msm_eeprom_ctrl_t *e_ctrl,
 		if (e_ctrl->userspace_probe == 0) {
 			pr_err("%s:%d Eeprom already probed at kernel boot",
 				__func__, __LINE__);
+#ifndef CONFIG_MACH_XIAOMI_MSM8998
 			rc = -EINVAL;
+#endif
 			break;
 		}
 		if (e_ctrl->cal_data.num_data == 0) {
@@ -1579,6 +1596,31 @@ static long msm_eeprom_subdev_fops_ioctl32(struct file *file, unsigned int cmd,
 
 #endif
 
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+uint8_t g_cal_fadj_data[128];
+EXPORT_SYMBOL(g_cal_fadj_data);
+
+/* add eeprom identification flow */
+void get_eeprom_name(uint8_t index, char *name)
+{
+	strlcpy(name, sensor_eeprom_name[index].name, sizeof(sensor_eeprom_name[index].name));
+	return;
+}
+EXPORT_SYMBOL(get_eeprom_name);
+EXPORT_SYMBOL(eeprom_name_count);
+
+/* compatible eeprom map for sagit P3 & P2 */
+int get_back_sensor_module_invalid(void)
+{
+	if (back_sensor_module_invalid) {
+		return -EINVAL;
+	} else {
+		return 0;
+	}
+}
+EXPORT_SYMBOL(get_back_sensor_module_invalid);
+#endif
+
 static int msm_eeprom_platform_probe(struct platform_device *pdev)
 {
 	int rc = 0;
@@ -1590,6 +1632,15 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 	struct msm_eeprom_board_info *eb_info = NULL;
 	struct device_node *of_node = pdev->dev.of_node;
 	struct msm_camera_power_ctrl_t *power_info = NULL;
+
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	int eeprom_basic_info_off = 0;
+	int eeprom_ois_info_off = 0;
+	char module_eeprom_name[4*EEPROM_NAME_MAX] = {0};
+	char pro_name[EEPROM_NAME_MAX] = {0};
+	char sensor_name[EEPROM_NAME_MAX] = {0};
+	char module_name[EEPROM_NAME_MAX] = {0};
+#endif
 
 	CDBG("%s E\n", __func__);
 
@@ -1724,9 +1775,90 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 			pr_err("%s read_eeprom_memory failed\n", __func__);
 			goto power_down;
 		}
+
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+		/* compatible eeprom map for sagit P3 & P2 */
+		CDBG("++++++++0x0e = 0x%x, 0x0d = 0x%x \n", e_ctrl->cal_data.mapdata[0x0e], e_ctrl->cal_data.mapdata[0x0d]);
+		if ((strcmp(eb_info->eeprom_name, "sagit_imx386_semco") == 0) ||
+			(strcmp(eb_info->eeprom_name, "sagit_s5k3m3_semco") == 0)) {
+			if (e_ctrl->cal_data.mapdata[0x0e] != 0x03) {
+				if ((e_ctrl->cal_data.mapdata[0x01] == 0x07) || (e_ctrl->cal_data.mapdata[0x01] == 0x03)) {
+					pr_err("3m3 semco and ofilm eeprom goto etcrl free");
+					back_sensor_module_invalid = false;
+					pr_err("back_sensor_module_invalid = %d \n", back_sensor_module_invalid);
+					strlcpy(sensor_eeprom_name[eeprom_name_count].name, eb_info->eeprom_name, EEPROM_NAME_MAX);
+					pr_err("%s: sensor_eeprom_name[%d] = %s, probe unnecessary!\n", __func__, eeprom_name_count, sensor_eeprom_name[eeprom_name_count].name);
+					eeprom_name_count++;
+					goto ectrl_free;
+				}
+			}
+		}
+		if (strcmp(eb_info->eeprom_name, "chiron_imx386_semco") == 0) {
+			eeprom_basic_info_off = 1;
+		}
+		CDBG("++++++++0x01 = 0x%x, 0x0d = 0x%x, 0x0c = 0x%x \n", e_ctrl->cal_data.mapdata[0x01], e_ctrl->cal_data.mapdata[0x0d], e_ctrl->cal_data.mapdata[0x0c]);
+		for (j = 0; j < (sizeof(module_info) / sizeof(struct module_info_t)); j++) {
+			if (e_ctrl->cal_data.mapdata[0x01 + eeprom_basic_info_off] == module_info[j].module_num) {
+				strlcpy(module_name, module_info[j].name, sizeof(module_info[j].name));
+				break;
+			}
+		}
+		CDBG("%s: module_name = %s\n", __func__, module_name);
+
+		for (j = 0; j < (sizeof(project_info) / sizeof(struct project_info_t)); j++) {
+			if (e_ctrl->cal_data.mapdata[0x0D + eeprom_basic_info_off] == project_info[j].pro_num) {
+				strlcpy(pro_name, project_info[j].name, sizeof(project_info[j].name));
+				break;
+			}
+		}
+		CDBG("%s: project_name = %s\n", __func__, pro_name);
+
+		for (j = 0; j < (sizeof(sensor_info) / sizeof(struct sensor_info_t)); j++) {
+			if (e_ctrl->cal_data.mapdata[0x0C + eeprom_basic_info_off] == sensor_info[j].sensor_num) {
+				if ((strcmp(pro_name, "sagit_") == 0) && (1 == pdev->id)) {
+					strlcpy(sensor_name, "s5k3m3", sizeof("s5k3m3"));
+				} else {
+					strlcpy(sensor_name, sensor_info[j].name, sizeof(sensor_info[j].name));
+				}
+				break;
+			}
+		}
+		CDBG("%s: sensor_name = %s\n", __func__, sensor_name);
+
+		for (j = 0; j < 3; j++) {
+			if (0 == j) {
+				strlcat(module_eeprom_name, pro_name, sizeof(pro_name));
+			} else if (1 == j) {
+				strlcat(module_eeprom_name, sensor_name, sizeof(sensor_name));
+			} else {
+				strlcat(module_eeprom_name, module_name, sizeof(module_name));
+			}
+		}
+		CDBG("%s: module_eeprom_name = %s\n", __func__, module_eeprom_name);
+
+		if (strcmp(module_eeprom_name, eb_info->eeprom_name) != 0) {
+			CDBG("%s: eeprom identify failed (non fatal)! qcom,eeprom-name = %s, module_eeprom_name = %s\n", __func__, eb_info->eeprom_name, module_eeprom_name);
+			rc = -ENOMEM;
+			goto power_down;
+		}
+#endif
+
 		for (j = 0; j < e_ctrl->cal_data.num_data; j++)
 			CDBG("memory_data[%d] = 0x%X\n", j,
 				e_ctrl->cal_data.mapdata[j]);
+
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+		if ((strcmp(eb_info->eeprom_name, "sagit_imx386_semco") == 0) ||
+			(strcmp(eb_info->eeprom_name, "chiron_imx386_semco") == 0)) {
+			if (strcmp(eb_info->eeprom_name, "sagit_imx386_semco") == 0)
+				eeprom_ois_info_off = 4910;
+			else if (strcmp(eb_info->eeprom_name, "chiron_imx386_semco") == 0)
+				eeprom_ois_info_off = 2095;
+			memcpy((void *)g_cal_fadj_data, (void *)(e_ctrl->cal_data.mapdata+eeprom_ois_info_off), 43);
+			for (j = 0; j < 43; j++)
+				CDBG("g_cal_fadj_data[%d] = 0x%X\n", j, g_cal_fadj_data[j]);
+		}
+#endif
 
 		e_ctrl->is_supported |= msm_eeprom_match_crc(&e_ctrl->cal_data);
 
@@ -1760,6 +1892,13 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 #endif
 
 	e_ctrl->is_supported = (e_ctrl->is_supported << 1) | 1;
+
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	strlcpy(sensor_eeprom_name[eeprom_name_count].name, module_eeprom_name, sizeof(module_eeprom_name));
+	pr_err("%s: sensor_eeprom_name[%d] = %s, probe success!\n", __func__, eeprom_name_count, sensor_eeprom_name[eeprom_name_count].name);
+	eeprom_name_count++;
+#endif
+
 	CDBG("%s X\n", __func__);
 	return rc;
 
