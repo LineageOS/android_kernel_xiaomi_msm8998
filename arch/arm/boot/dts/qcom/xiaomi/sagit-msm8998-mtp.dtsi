@@ -514,7 +514,6 @@
 	qcom,vmax-mv = <3248>;
 	qcom,wave-shape = "sine";
 	qcom,brake-pattern = [03 02 00 00];
-	qcom,misc-trim-error-rc19p2-clk-reg-present;
 
 	status = "okay";
 };
