@@ -2594,7 +2594,7 @@ enum Tfa98xx_Error tfaRunSpeakerCalibration(Tfa98xx_handle_t handle, int profile
 	enum Tfa98xx_Error err = Tfa98xx_Error_Ok;
 	int calibrateDone, spkr_count = 0;
 	/* Avoid warning in user-space */
-	profile = profile;
+	(void)profile;
 
 #ifdef __KERNEL__ /* Necessary otherwise we are thrown out of operating mode in kernel (because of internal clock) */
 	/* SL: In kernel, there's no clock available during cold start, therefore power down chip */
