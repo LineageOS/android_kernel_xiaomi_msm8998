@@ -66,6 +66,10 @@ enum print_reason {
 #define USBIN_I_VOTER			"USBIN_I_VOTER"
 #define WEAK_CHARGER_VOTER		"WEAK_CHARGER_VOTER"
 
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+#define FB_SCREEN_VOTER			"FB_SCREEN_VOTER"
+#endif
+
 #define VCONN_MAX_ATTEMPTS	3
 #define OTG_MAX_ATTEMPTS	3
 #define BOOST_BACK_STORM_COUNT	3
@@ -256,6 +260,9 @@ struct smb_charger {
 
 	/* notifiers */
 	struct notifier_block	nb;
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	struct notifier_block	fb_state_notifier;
+#endif
 
 	/* parallel charging */
 	struct parallel_params	pl;
@@ -298,6 +305,9 @@ struct smb_charger {
 	struct work_struct	legacy_detection_work;
 	struct delayed_work	uusb_otg_work;
 	struct delayed_work	bb_removal_work;
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	struct delayed_work	fb_state_work;
+#endif
 
 	/* cached status */
 	int			voltage_min_uv;
@@ -307,7 +317,13 @@ struct smb_charger {
 	int			boost_threshold_ua;
 	int			system_temp_level;
 	int			thermal_levels;
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	int			*thermal_mitigation_dcp;
+	int			*thermal_mitigation_qc3;
+	int			*thermal_mitigation_qc2;
+#else
 	int			*thermal_mitigation;
+#endif
 	int			dcp_icl_ua;
 	int			fake_capacity;
 	bool			step_chg_enabled;
@@ -335,6 +351,9 @@ struct smb_charger {
 	u8			float_cfg;
 	bool			use_extcon;
 	bool			otg_present;
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	bool			screen_on;
+#endif
 
 	/* workaround flag */
 	u32			wa_flags;
