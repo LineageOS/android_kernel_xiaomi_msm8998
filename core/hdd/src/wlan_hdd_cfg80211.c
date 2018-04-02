@@ -10882,6 +10882,11 @@ static int __wlan_hdd_cfg80211_set_nud_stats(struct wiphy *wiphy,
 
 	ENTER();
 
+	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
+		hdd_err("Command not allowed in FTM mode");
+		return -EINVAL;
+	}
+
 	err = wlan_hdd_validate_context(hdd_ctx);
 	if (0 != err)
 		return err;
@@ -11468,6 +11473,11 @@ static int __wlan_hdd_cfg80211_get_nud_stats(struct wiphy *wiphy,
 	struct sk_buff *skb;
 
 	ENTER();
+
+	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
+		hdd_err("Command not allowed in FTM mode");
+		return -EINVAL;
+	}
 
 	err = wlan_hdd_validate_context(hdd_ctx);
 	if (0 != err)
@@ -17650,16 +17660,7 @@ static int wlan_hdd_cfg80211_connect(struct wiphy *wiphy,
 	return ret;
 }
 
-/**
- * wlan_hdd_disconnect() - hdd disconnect api
- * @pAdapter: Pointer to adapter
- * @reason: Disconnect reason code
- *
- * This function is used to issue a disconnect request to SME
- *
- * Return: 0 for success, non-zero for failure
- */
-static int wlan_hdd_disconnect(hdd_adapter_t *pAdapter, u16 reason)
+int wlan_hdd_disconnect(hdd_adapter_t *pAdapter, u16 reason)
 {
 	int status, result = 0;
 	unsigned long rc;
