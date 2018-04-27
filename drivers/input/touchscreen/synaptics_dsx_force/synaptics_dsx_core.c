@@ -175,9 +175,9 @@ static ssize_t synaptics_secure_touch_show(struct device *dev,
 #endif
 
 #ifdef CONFIG_FB
+static void synaptics_rmi4_fb_notifier_work(struct work_struct *work);
+static void synaptics_rmi4_fb_notifier_tddi_work(struct work_struct *work);
 static int synaptics_rmi4_fb_notifier_cb(struct notifier_block *self,
-		unsigned long event, void *data);
-static int synaptics_rmi4_fb_notifier_cb_tddi(struct notifier_block *self,
 		unsigned long event, void *data);
 #endif
 
@@ -5099,10 +5099,15 @@ static int synaptics_rmi4_probe(struct platform_device *pdev)
 	synaptics_rmi4_query_chip_id(rmi4_data);
 
 #ifdef CONFIG_FB
-	if (!rmi4_data->chip_is_tddi)
-		rmi4_data->fb_notifier.notifier_call = synaptics_rmi4_fb_notifier_cb;
+	rmi4_data->fb_state_workqueue = alloc_workqueue("fb-state-workqueue",
+			WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
+
+	if (rmi4_data->chip_is_tddi)
+		INIT_WORK(&rmi4_data->fb_state_work, synaptics_rmi4_fb_notifier_tddi_work);
 	else
-		rmi4_data->fb_notifier.notifier_call = synaptics_rmi4_fb_notifier_cb_tddi;
+		INIT_WORK(&rmi4_data->fb_state_work, synaptics_rmi4_fb_notifier_work);
+
+	rmi4_data->fb_notifier.notifier_call = synaptics_rmi4_fb_notifier_cb;
 	retval = fb_register_client(&rmi4_data->fb_notifier);
 	if (retval < 0) {
 		dev_err(&pdev->dev,
@@ -5601,32 +5606,20 @@ static void synaptics_rmi4_wakeup_gesture(struct synaptics_rmi4_data *rmi4_data,
 }
 
 #ifdef CONFIG_FB
-static int synaptics_rmi4_fb_notifier_cb(struct notifier_block *self,
-		unsigned long event, void *data)
+static void synaptics_rmi4_fb_notifier_work(struct work_struct *work)
 {
 	struct synaptics_rmi4_data *rmi4_data =
-			container_of(self, struct synaptics_rmi4_data,
-			fb_notifier);
-	struct fb_event *evdata = data;
+			container_of(work, struct synaptics_rmi4_data,
+			fb_state_work);
 	struct synaptics_dsx_board_data *bdata = NULL;
-	unsigned int transition;
 
-	if (!rmi4_data)
-		return 0;
+	unsigned long event = rmi4_data->fb_state_event;
+	unsigned int transition = rmi4_data->fb_state_transition;
 
 	if (!rmi4_data->hw_if->board_data)
-		return 0;
+		return;
 
 	bdata = rmi4_data->hw_if->board_data;
-
-	if (!evdata || !evdata->data)
-		return 0;
-
-	/* Receive notifications from primary panel only */
-	if (!mdss_panel_is_prim(evdata->info))
-		return 0;
-
-	transition = *(int *)(evdata->data);
 
 	if (event == FB_EVENT_BLANK) {
 		if (transition == FB_BLANK_POWERDOWN || transition == FB_BLANK_NORMAL) {
@@ -5676,33 +5669,16 @@ static int synaptics_rmi4_fb_notifier_cb(struct notifier_block *self,
 			}
 		}
 	}
-
-	return 0;
 }
 
-static int synaptics_rmi4_fb_notifier_cb_tddi(struct notifier_block *self,
-		unsigned long event, void *data)
+static void synaptics_rmi4_fb_notifier_tddi_work(struct work_struct *work)
 {
 	struct synaptics_rmi4_data *rmi4_data =
-			container_of(self, struct synaptics_rmi4_data,
-			fb_notifier);
-	struct fb_event *evdata = data;
-	unsigned int transition;
+			container_of(work, struct synaptics_rmi4_data,
+			fb_state_work);
 
-	if (!rmi4_data)
-		return 0;
-
-	if (!evdata || !evdata->data)
-		return 0;
-
-	if (mdss_prim_panel_is_dead())
-		return 0;
-
-	/* Receive notifications from primary panel only */
-	if (!mdss_panel_is_prim(evdata->info))
-		return 0;
-
-	transition = *(int *)(evdata->data);
+	unsigned long event = rmi4_data->fb_state_event;
+	unsigned int transition = rmi4_data->fb_state_transition;
 
 	if (event == FB_EVENT_BLANK) {
 		if (transition == FB_BLANK_UNBLANK || transition == FB_BLANK_NORMAL) {
@@ -5751,6 +5727,30 @@ static int synaptics_rmi4_fb_notifier_cb_tddi(struct notifier_block *self,
 			}
 		}
 	}
+}
+
+static int synaptics_rmi4_fb_notifier_cb(struct notifier_block *self,
+		unsigned long event, void *data) {
+	struct synaptics_rmi4_data *rmi4_data =
+			container_of(self, struct synaptics_rmi4_data,
+			fb_notifier);
+	struct fb_event *evdata = data;
+
+	if (!rmi4_data || !evdata || !evdata->data)
+		return 0;
+
+	if (mdss_prim_panel_is_dead())
+		return 0;
+
+	/* Receive notifications from primary panel only */
+	if (!mdss_panel_is_prim(evdata->info))
+		return 0;
+
+	rmi4_data->fb_state_event = event;
+	rmi4_data->fb_state_transition = *(int *)(evdata->data);
+
+	queue_work(rmi4_data->fb_state_workqueue,
+			&rmi4_data->fb_state_work);
 
 	return 0;
 }

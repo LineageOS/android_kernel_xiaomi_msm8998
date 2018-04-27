@@ -350,6 +350,10 @@ struct synaptics_rmi4_data {
 	struct notifier_block fb_notifier;
 	struct work_struct reset_work;
 	struct workqueue_struct *reset_workqueue;
+	struct work_struct fb_state_work;
+	struct workqueue_struct *fb_state_workqueue;
+	unsigned long fb_state_event;
+	unsigned int fb_state_transition;
 #endif
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
