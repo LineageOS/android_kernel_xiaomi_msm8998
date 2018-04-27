@@ -5604,69 +5604,75 @@ static void synaptics_rmi4_wakeup_gesture(struct synaptics_rmi4_data *rmi4_data,
 static int synaptics_rmi4_fb_notifier_cb(struct notifier_block *self,
 		unsigned long event, void *data)
 {
-	int *transition;
-	struct fb_event *evdata = data;
 	struct synaptics_rmi4_data *rmi4_data =
 			container_of(self, struct synaptics_rmi4_data,
 			fb_notifier);
+	struct fb_event *evdata = data;
+	struct synaptics_dsx_board_data *bdata = NULL;
+	unsigned int transition;
 
-	const struct synaptics_dsx_board_data *bdata = NULL;
+	if (!rmi4_data)
+		return 0;
 
-	if (rmi4_data->hw_if->board_data)
-		bdata = rmi4_data->hw_if->board_data;
-	else
+	if (!rmi4_data->hw_if->board_data)
+		return 0;
+
+	bdata = rmi4_data->hw_if->board_data;
+
+	if (!evdata || !evdata->data)
 		return 0;
 
 	/* Receive notifications from primary panel only */
-	if (evdata && evdata->data && rmi4_data && mdss_panel_is_prim(evdata->info)) {
-		if (event == FB_EVENT_BLANK) {
-			transition = evdata->data;
-			if ((*transition == FB_BLANK_POWERDOWN) || (*transition == FB_BLANK_NORMAL)) {
-				synaptics_rmi4_suspend(&rmi4_data->pdev->dev);
-				rmi4_data->fb_ready = false;
-			} else if ((*transition == FB_BLANK_UNBLANK) || (*transition == FB_BLANK_NORMAL)) {
-				synaptics_rmi4_resume(&rmi4_data->pdev->dev);
-				rmi4_data->fb_ready = true;
-				if (rmi4_data->wakeup_en) {
-					mdss_panel_reset_skip_enable(false);
-					mdss_regulator_ctrl(rmi4_data, DISP_REG_ALL, false);
-					mdss_dsi_ulps_suspend_enable(false);
-					mdss_dsi_ulps_enable(false);
-					rmi4_data->wakeup_en = false;
-				}
+	if (!mdss_panel_is_prim(evdata->info))
+		return 0;
 
-#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_TEST_REPORTING_FORCE
-				rmi4_data->disable_data_dump = false;
-#endif
+	transition = *(int *)(evdata->data);
+
+	if (event == FB_EVENT_BLANK) {
+		if (transition == FB_BLANK_POWERDOWN || transition == FB_BLANK_NORMAL) {
+			synaptics_rmi4_suspend(&rmi4_data->pdev->dev);
+			rmi4_data->fb_ready = false;
+		} else if (transition == FB_BLANK_UNBLANK || transition == FB_BLANK_NORMAL) {
+			synaptics_rmi4_resume(&rmi4_data->pdev->dev);
+			rmi4_data->fb_ready = true;
+			if (rmi4_data->wakeup_en) {
+				mdss_panel_reset_skip_enable(false);
+				mdss_regulator_ctrl(rmi4_data, DISP_REG_ALL, false);
+				mdss_dsi_ulps_suspend_enable(false);
+				mdss_dsi_ulps_enable(false);
+				rmi4_data->wakeup_en = false;
 			}
-		} else if (event == FB_EARLY_EVENT_BLANK) {
-			transition = evdata->data;
-			if ((*transition == FB_BLANK_POWERDOWN) || (*transition == FB_BLANK_NORMAL)) {
-#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_TEST_REPORTING_FORCE
-				rmi4_data->disable_data_dump = true;
-				if (rmi4_data->dump_flags) {
-					reinit_completion(&rmi4_data->dump_completion);
-					wait_for_completion_timeout(&rmi4_data->dump_completion, 4 * HZ);
-				}
-#endif
-				if (rmi4_data->enable_wakeup_gesture) {
-					rmi4_data->wakeup_en = true;
-					mdss_regulator_ctrl(rmi4_data, DISP_REG_ALL, true);
-					mdss_panel_reset_skip_enable(true);
-					pr_debug("Enable suspend ulps\n");
-					mdss_dsi_ulps_enable(true);
-					mdss_dsi_ulps_suspend_enable(true);
 
-				}
-			} else if ((*transition == FB_BLANK_UNBLANK) || (*transition == FB_BLANK_NORMAL)) {
-				if (bdata->reset_gpio >= 0 && rmi4_data->suspend) {
-					gpio_set_value(bdata->reset_gpio, bdata->reset_on_state);
-					msleep(bdata->reset_active_ms);
-					gpio_set_value(bdata->reset_gpio, !bdata->reset_on_state);
-				}
-				if (rmi4_data->wakeup_en) {
-					mdss_reset_action(bdata);
-				}
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_TEST_REPORTING_FORCE
+			rmi4_data->disable_data_dump = false;
+#endif
+		}
+	} else if (event == FB_EARLY_EVENT_BLANK) {
+		if (transition == FB_BLANK_POWERDOWN || transition == FB_BLANK_NORMAL) {
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_TEST_REPORTING_FORCE
+			rmi4_data->disable_data_dump = true;
+			if (rmi4_data->dump_flags) {
+				reinit_completion(&rmi4_data->dump_completion);
+				wait_for_completion_timeout(&rmi4_data->dump_completion, 4 * HZ);
+			}
+#endif
+			if (rmi4_data->enable_wakeup_gesture) {
+				rmi4_data->wakeup_en = true;
+				mdss_regulator_ctrl(rmi4_data, DISP_REG_ALL, true);
+				mdss_panel_reset_skip_enable(true);
+				pr_debug("Enable suspend ulps\n");
+				mdss_dsi_ulps_enable(true);
+				mdss_dsi_ulps_suspend_enable(true);
+
+			}
+		} else if (transition == FB_BLANK_UNBLANK || transition == FB_BLANK_NORMAL) {
+			if (bdata->reset_gpio >= 0 && rmi4_data->suspend) {
+				gpio_set_value(bdata->reset_gpio, bdata->reset_on_state);
+				msleep(bdata->reset_active_ms);
+				gpio_set_value(bdata->reset_gpio, !bdata->reset_on_state);
+			}
+			if (rmi4_data->wakeup_en) {
+				mdss_reset_action(bdata);
 			}
 		}
 	}
@@ -5677,64 +5683,71 @@ static int synaptics_rmi4_fb_notifier_cb(struct notifier_block *self,
 static int synaptics_rmi4_fb_notifier_cb_tddi(struct notifier_block *self,
 		unsigned long event, void *data)
 {
-	int *transition;
-	struct fb_event *evdata = data;
 	struct synaptics_rmi4_data *rmi4_data =
 			container_of(self, struct synaptics_rmi4_data,
 			fb_notifier);
+	struct fb_event *evdata = data;
+	unsigned int transition;
+
+	if (!rmi4_data)
+		return 0;
+
+	if (!evdata || !evdata->data)
+		return 0;
 
 	if (mdss_prim_panel_is_dead())
 		return 0;
 
 	/* Receive notifications from primary panel only */
-	if (evdata && evdata->data && rmi4_data && mdss_panel_is_prim(evdata->info)) {
-		if (event == FB_EVENT_BLANK) {
-			transition = evdata->data;
-			if ((*transition == FB_BLANK_UNBLANK) || (*transition == FB_BLANK_NORMAL)) {
-				if (rmi4_data->wakeup_en) {
-					mdss_panel_reset_skip_enable(false);
-					mdss_regulator_ctrl(rmi4_data, DISP_REG_ALL, false);
-					rmi4_data->wakeup_en = false;
-				} else {
-					synaptics_rmi4_resume(&rmi4_data->pdev->dev);
-					rmi4_data->fb_ready = true;
-				}
+	if (!mdss_panel_is_prim(evdata->info))
+		return 0;
 
-#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_TEST_REPORTING_FORCE
-				rmi4_data->disable_data_dump = false;
-#endif
-			} else if ((*transition == FB_BLANK_POWERDOWN) || (*transition == FB_BLANK_NORMAL)) {
-				if (rmi4_data->wakeup_en) {
-					synaptics_rmi4_suspend(&rmi4_data->pdev->dev);
-					rmi4_data->fb_ready = true;
-				}
+	transition = *(int *)(evdata->data);
+
+	if (event == FB_EVENT_BLANK) {
+		if (transition == FB_BLANK_UNBLANK || transition == FB_BLANK_NORMAL) {
+			if (rmi4_data->wakeup_en) {
+				mdss_panel_reset_skip_enable(false);
+				mdss_regulator_ctrl(rmi4_data, DISP_REG_ALL, false);
+				rmi4_data->wakeup_en = false;
+			} else {
+				synaptics_rmi4_resume(&rmi4_data->pdev->dev);
+				rmi4_data->fb_ready = true;
 			}
-		} else if (event == FB_EARLY_EVENT_BLANK) {
-			transition = evdata->data;
-			if (*transition == FB_BLANK_UNBLANK) {
-				if (rmi4_data->wakeup_en) {
-					synaptics_rmi4_resume(&rmi4_data->pdev->dev);
-					rmi4_data->fb_ready = true;
-					msleep(30);
-				}
-			} else if ((*transition == FB_BLANK_POWERDOWN) || (*transition == FB_BLANK_NORMAL)) {
-#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_TEST_REPORTING_FORCE
-				rmi4_data->disable_data_dump = true;
-				if (rmi4_data->dump_flags) {
-					reinit_completion(&rmi4_data->dump_completion);
-					wait_for_completion_timeout(&rmi4_data->dump_completion, 4 * HZ);
-				}
-#endif
-				if (rmi4_data->enable_wakeup_gesture) {
-					rmi4_data->wakeup_en = true;
-					mdss_panel_reset_skip_enable(true);
-					mdss_regulator_ctrl(rmi4_data, DISP_REG_ALL, true);
-				}
 
-				if (!rmi4_data->wakeup_en) {
-					synaptics_rmi4_suspend(&rmi4_data->pdev->dev);
-					rmi4_data->fb_ready = false;
-				}
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_TEST_REPORTING_FORCE
+			rmi4_data->disable_data_dump = false;
+#endif
+		} else if (transition == FB_BLANK_POWERDOWN || transition == FB_BLANK_NORMAL) {
+			if (rmi4_data->wakeup_en) {
+				synaptics_rmi4_suspend(&rmi4_data->pdev->dev);
+				rmi4_data->fb_ready = true;
+			}
+		}
+	} else if (event == FB_EARLY_EVENT_BLANK) {
+		if (transition == FB_BLANK_UNBLANK) {
+			if (rmi4_data->wakeup_en) {
+				synaptics_rmi4_resume(&rmi4_data->pdev->dev);
+				rmi4_data->fb_ready = true;
+				msleep(30);
+			}
+		} else if (transition == FB_BLANK_POWERDOWN || transition == FB_BLANK_NORMAL) {
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_TEST_REPORTING_FORCE
+			rmi4_data->disable_data_dump = true;
+			if (rmi4_data->dump_flags) {
+				reinit_completion(&rmi4_data->dump_completion);
+				wait_for_completion_timeout(&rmi4_data->dump_completion, 4 * HZ);
+			}
+#endif
+			if (rmi4_data->enable_wakeup_gesture) {
+				rmi4_data->wakeup_en = true;
+				mdss_panel_reset_skip_enable(true);
+				mdss_regulator_ctrl(rmi4_data, DISP_REG_ALL, true);
+			}
+
+			if (!rmi4_data->wakeup_en) {
+				synaptics_rmi4_suspend(&rmi4_data->pdev->dev);
+				rmi4_data->fb_ready = false;
 			}
 		}
 	}
