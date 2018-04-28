@@ -46,6 +46,7 @@
 
 &pmi8998_wled {
 	qcom,switch-freq-khz = <600>;
+	/delete-property/ qcom,auto-calibration-enable;
 };
 
 &pmi8998_flash0 {
