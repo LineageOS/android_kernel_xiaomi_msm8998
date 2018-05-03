@@ -119,12 +119,11 @@ static long gf_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long a
 static irqreturn_t gf_irq(int irq, void *handle)
 {
 	struct gf_dev *gf_dev = handle;
-	char temp[4] = { 0x0 };
 
 	wake_lock_timeout(&gf_dev->fp_wakelock, msecs_to_jiffies(WAKELOCK_HOLD_TIME));
 
-	temp[0] = GF_NET_EVENT_IRQ;
-	sendnlmsg(temp);
+	gf_dev->message = GF_NET_EVENT_IRQ;
+	schedule_work(&gf_dev->message_work);
 
 	return IRQ_HANDLED;
 }
@@ -209,12 +208,13 @@ static const struct file_operations gf_fops = {
 	.release = gf_release,
 };
 
-static void gf_fb_state_worker(struct work_struct *work)
+static void gf_message_worker(struct work_struct *work)
 {
-	struct gf_dev *gf_dev = container_of(work, typeof(*gf_dev), fb_state_work);
+	struct gf_dev *gf_dev = container_of(work, typeof(*gf_dev), message_work);
 	char temp[4] = {0x0};
 
-	temp[0] = gf_dev->fb_state;
+	temp[0] = gf_dev->message;
+
 	sendnlmsg(temp);
 }
 
@@ -238,16 +238,16 @@ static int gf_fb_state_callback(struct notifier_block *nb,
 	blank = *(int *)(evdata->data);
 	switch (blank) {
 	case FB_BLANK_POWERDOWN:
-		gf_dev->fb_state = GF_NET_EVENT_FB_BLACK;
+		gf_dev->message = GF_NET_EVENT_FB_BLACK;
 		break;
 	case FB_BLANK_UNBLANK:
-		gf_dev->fb_state = GF_NET_EVENT_FB_UNBLACK;
+		gf_dev->message = GF_NET_EVENT_FB_UNBLACK;
 		break;
 	default:
 		goto end;
 	}
 
-	schedule_work(&gf_dev->fb_state_work);
+	schedule_work(&gf_dev->message_work);
 
 end:
 	return NOTIFY_OK;
@@ -324,7 +324,7 @@ static int gf_probe(struct platform_device *pdev)
 
 	gf_dev->notifier = gf_fb_notifier;
 	fb_register_client(&gf_dev->notifier);
-	INIT_WORK(&gf_dev->fb_state_work, gf_fb_state_worker);
+	INIT_WORK(&gf_dev->message_work, gf_message_worker);
 
 	wake_lock_init(&gf_dev->fp_wakelock, WAKE_LOCK_SUSPEND, "fp_wakelock");
 

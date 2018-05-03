@@ -44,16 +44,15 @@ struct gf_dev {
 	struct input_dev *input;
 
 	struct notifier_block notifier;
-	struct work_struct fb_state_work;
-	int fb_state;
+	struct work_struct message_work;
+	struct wake_lock fp_wakelock;
+	int message;
 
 	signed irq_gpio;
 	signed reset_gpio;
 
 	unsigned users;
 	int irq;
-
-	struct wake_lock fp_wakelock;
 };
 
 void sendnlmsg(char *message);
