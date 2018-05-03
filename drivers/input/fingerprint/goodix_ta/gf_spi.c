@@ -121,7 +121,7 @@ static irqreturn_t gf_irq(int irq, void *handle)
 	struct gf_dev *gf_dev = handle;
 
 	gf_dev->message = GF_NET_EVENT_IRQ;
-	schedule_work(&gf_dev->message_work);
+	queue_work(gf_dev->message_workqueue, &gf_dev->message_work);
 
 	return IRQ_HANDLED;
 }
@@ -247,7 +247,7 @@ static int gf_fb_state_callback(struct notifier_block *nb,
 		goto end;
 	}
 
-	schedule_work(&gf_dev->message_work);
+	queue_work(gf_dev->message_workqueue, &gf_dev->message_work);
 
 end:
 	return NOTIFY_OK;
@@ -324,6 +324,8 @@ static int gf_probe(struct platform_device *pdev)
 
 	gf_dev->notifier = gf_fb_notifier;
 	fb_register_client(&gf_dev->notifier);
+	gf_dev->message_workqueue = alloc_workqueue("gf-message",
+			WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
 	INIT_WORK(&gf_dev->message_work, gf_message_worker);
 
 	wake_lock_init(&gf_dev->fp_wakelock, WAKE_LOCK_SUSPEND, "fp_wakelock");
@@ -352,6 +354,8 @@ static int gf_remove(struct platform_device *pdev)
 	netlink_exit();
 
 	wake_lock_destroy(&gf_dev->fp_wakelock);
+
+	destroy_workqueue(gf_dev->message_workqueue);
 
 	fb_unregister_client(&gf_dev->notifier);
 
