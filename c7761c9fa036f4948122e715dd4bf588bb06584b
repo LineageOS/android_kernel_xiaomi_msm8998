@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "9d5f9d52_9e0b8e63",
+        "filename": "arch/arm64/configs/sagit_defconfig",
+        "patchSetId": 2
+      },
+      "lineNbr": 657,
+      "author": {
+        "id": 9760
+      },
+      "writtenOn": "2018-05-04T19:31:26Z",
+      "side": 1,
+      "message": "This is the default value",
+      "revId": "c7761c9fa036f4948122e715dd4bf588bb06584b",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
