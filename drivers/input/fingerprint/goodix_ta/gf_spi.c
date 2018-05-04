@@ -32,6 +32,7 @@
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/fb.h>
+#include <linux/sched.h>
 
 #include "gf_spi.h"
 
@@ -135,6 +136,8 @@ static int gf_open(struct inode *inode, struct file *filp)
 	struct gf_device *gf_dev = &gf;
 	int rc;
 
+	gf_dev->process = current;
+
 	/*
 	 * If this is not the first user, skip hardware configuration.
 	 */
@@ -221,12 +224,26 @@ static void gf_event_worker(struct work_struct *work)
 	struct gf_device *gf_dev = container_of(work, typeof(*gf_dev), event_work);
 	char temp[4] = {0x0};
 
+	/*
+	 * If no process has opened the char device then no one is
+	 * listening for the netlink event.
+	 */
+	if (!gf_dev->process)
+		return;
+
 	switch (gf_dev->event) {
+	/*
+	 * Elevate the fingerprint process priority when screen is off to ensure
+	 * the fingerprint sensor is responsive and that the haptic
+	 * response on successful verification always fires.
+	 */
 	case GF_NET_EVENT_FB_BLACK:
 		gf_dev->display_on = false;
+		set_user_nice(gf_dev->process, MIN_NICE);
 		break;
 	case GF_NET_EVENT_FB_UNBLACK:
 		gf_dev->display_on = true;
+		set_user_nice(gf_dev->process, 0);
 		break;
 	/*
 	 * IRQs are followed by fingerprint procesing, hold a wakelock to make
@@ -292,6 +309,7 @@ static int gf_probe(struct platform_device *pdev)
 	int major;
 	int rc = 0;
 
+	gf_dev->process = NULL;
 	gf_dev->display_on = true;
 	gf_dev->irq_enabled = false;
 
