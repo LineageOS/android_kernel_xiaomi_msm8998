@@ -133,6 +133,8 @@ static int gf_open(struct inode *inode, struct file *filp)
 	struct gf_dev *gf_dev = &gf;
 	int rc;
 
+	gf_dev->process = current;
+
 	/*
 	 * If this is the first user, turn on irqs and reset the hardware.
 	 */
@@ -208,10 +210,32 @@ static const struct file_operations gf_fops = {
 	.release = gf_release,
 };
 
+static void gf_set_process_nice(struct gf_dev *gf_dev, int nice) {
+	if (!gf_dev->process)
+		return;
+
+	pr_debug("%s: setting nice to %d\n", __func__, nice);
+	set_user_nice(gf_dev->process, nice);
+}
+
 static void gf_event_worker(struct work_struct *work)
 {
 	struct gf_dev *gf_dev = container_of(work, typeof(*gf_dev), event_work);
 	char temp[4] = {0x0};
+
+	switch (gf_dev->event) {
+	/*
+	 * Elevate the fingerprint process priority when screen is off to ensure
+	 * the fingerprint sensor is responsive and that the haptic
+	 * response on successful verification always fires.
+	 */
+	case GF_NET_EVENT_FB_BLACK:
+		gf_set_process_nice(gf_dev, -1);
+		break;
+	case GF_NET_EVENT_FB_UNBLACK:
+		gf_set_process_nice(gf_dev, 0);
+		break;
+	}
 
 	temp[0] = gf_dev->event;
 
@@ -263,6 +287,8 @@ static int gf_probe(struct platform_device *pdev)
 	struct device *dev;
 	int major;
 	int rc = 0;
+
+	gf_dev->process = NULL;
 
 	gf_dev->reset_gpio = of_get_named_gpio(pdev->dev.of_node,
 			"fp-gpio-reset", 0);
