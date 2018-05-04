@@ -54,6 +54,8 @@ struct gf_dev {
 
 	unsigned users;
 	int irq;
+
+	struct task_struct *process;
 };
 
 void sendnlmsg(char *message);
