@@ -309,6 +309,7 @@ struct usbpd {
 	struct device		dev;
 	struct workqueue_struct	*wq;
 	struct work_struct	sm_work;
+	struct delayed_work	vbus_work;
 	struct hrtimer		timer;
 	bool			sm_queued;
 
@@ -3129,6 +3130,40 @@ static ssize_t hard_reset_store(struct device *dev,
 }
 static DEVICE_ATTR_WO(hard_reset);
 
+#define PD_VBUS_RESET_WAIT		5000
+#define PD_VBUS_WORK_DELAY		200
+
+struct usbpd *pd_global;
+
+void usbpd_vbus_sm(struct work_struct *w)
+{
+	struct usbpd *pd = pd_global;
+
+	if (!pd)
+		return;
+
+	if (!pd->vbus_enabled)
+		return;
+
+	regulator_disable(pd->vbus);
+	pd->vbus_enabled = false;
+	msleep(PD_VBUS_RESET_WAIT);
+	enable_vbus(pd);
+}
+
+void kick_usbpd_vbus_sm(void)
+{
+	struct usbpd *pd = pd_global;
+
+	if (!pd)
+		return;
+
+	pm_stay_awake(&pd->dev);
+
+	queue_delayed_work(pd->wq, &pd->vbus_work,
+			msecs_to_jiffies(PD_VBUS_WORK_DELAY));
+}
+
 static struct attribute *usbpd_attrs[] = {
 	&dev_attr_contract.attr,
 	&dev_attr_initial_pr.attr,
@@ -3262,6 +3297,7 @@ struct usbpd *usbpd_create(struct device *parent)
 		goto del_pd;
 	}
 	INIT_WORK(&pd->sm_work, usbpd_sm);
+	INIT_DELAYED_WORK(&pd->vbus_work, usbpd_vbus_sm);
 	hrtimer_init(&pd->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	pd->timer.function = pd_timeout;
 	mutex_init(&pd->swap_lock);
@@ -3386,6 +3422,8 @@ struct usbpd *usbpd_create(struct device *parent)
 
 	/* force read initial power_supply values */
 	psy_changed(&pd->psy_nb, PSY_EVENT_PROP_CHANGED, pd->usb_psy);
+
+	pd_global = pd;
 
 	return pd;
 
