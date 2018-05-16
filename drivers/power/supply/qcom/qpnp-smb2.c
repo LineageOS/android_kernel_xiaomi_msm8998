@@ -2549,6 +2549,8 @@ static int smb2_probe(struct platform_device *pdev)
 	device_init_wakeup(chg->dev, true);
 #endif
 
+	chg->last_soc = -EINVAL;
+
 	pr_info("QPNP SMB2 probed successfully usb:present=%d type=%d batt:present = %d health = %d charge = %d\n",
 		usb_present, chg->real_charger_type,
 		batt_present, batt_health, batt_charge_type);
@@ -2614,6 +2616,34 @@ static void smb2_shutdown(struct platform_device *pdev)
 				 AUTO_SRC_DETECT_BIT, AUTO_SRC_DETECT_BIT);
 }
 
+static int smb2_resume(struct device *dev)
+{
+	struct smb2 *chip = dev_get_drvdata(dev);
+	struct smb_charger *chg = &chip->chg;
+	union power_supply_propval pval = {0, };
+	int rc;
+
+	if (!chg->batt_psy)
+		return 0;
+
+	rc = smblib_get_prop_batt_capacity(chg, &pval);
+	if (rc < 0) {
+		pr_err("Couldn't get batt capacity rc=%d\n", rc);
+		return 0;
+	}
+
+	if (pval.intval != chg->last_soc) {
+		power_supply_changed(chg->batt_psy);
+		chg->last_soc = pval.intval;
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops smb2_pm_ops = {
+	.resume		= smb2_resume,
+};
+
 static const struct of_device_id match_table[] = {
 	{ .compatible = "qcom,qpnp-smb2", },
 	{ },
@@ -2624,6 +2654,7 @@ static struct platform_driver smb2_driver = {
 		.name		= "qcom,qpnp-smb2",
 		.owner		= THIS_MODULE,
 		.of_match_table	= match_table,
+		.pm		= &smb2_pm_ops,
 	},
 	.probe		= smb2_probe,
 	.remove		= smb2_remove,
