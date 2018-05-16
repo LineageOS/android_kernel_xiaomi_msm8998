@@ -1993,7 +1993,8 @@ static int smblib_fb_state_cb(struct notifier_block *self,
 		goto end;
 	}
 
-	schedule_delayed_work(&chg->fb_state_work,
+	queue_delayed_work(system_power_efficient_wq,
+			&chg->fb_state_work,
 			msecs_to_jiffies(check_ms));
 
 end:
