@@ -46,6 +46,7 @@ struct gf_dev {
 	struct notifier_block notifier;
 	struct workqueue_struct *event_workqueue;
 	struct work_struct event_work;
+	struct delayed_work unboost_work;
 	struct wake_lock fp_wakelock;
 	int event;
 
