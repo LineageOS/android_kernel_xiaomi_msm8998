@@ -32,6 +32,7 @@
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/fb.h>
+#include <linux/sched.h>
 
 #include "gf_spi.h"
 
@@ -218,6 +219,12 @@ static void gf_set_process_nice(struct gf_dev *gf_dev, int nice) {
 	set_user_nice(gf_dev->process, nice);
 }
 
+#define SCHED_BOOST_MS		2000
+static void gf_unboost_worker(struct work_struct *work)
+{
+	sched_set_boost(0);
+}
+
 static void gf_event_worker(struct work_struct *work)
 {
 	struct gf_dev *gf_dev = container_of(work, typeof(*gf_dev), event_work);
@@ -234,6 +241,13 @@ static void gf_event_worker(struct work_struct *work)
 		break;
 	case GF_NET_EVENT_FB_UNBLACK:
 		gf_set_process_nice(gf_dev, 0);
+		break;
+	case GF_NET_EVENT_IRQ:
+		cancel_delayed_work(&gf_dev->unboost_work);
+		sched_set_boost(1);
+		queue_delayed_work(system_power_efficient_wq,
+				&gf_dev->unboost_work,
+				msecs_to_jiffies(SCHED_BOOST_MS));
 		break;
 	}
 
@@ -353,6 +367,7 @@ static int gf_probe(struct platform_device *pdev)
 	gf_dev->event_workqueue = alloc_workqueue("gf-event-wq",
 			WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
 	INIT_WORK(&gf_dev->event_work, gf_event_worker);
+	INIT_DELAYED_WORK(&gf_dev->unboost_work, gf_unboost_worker);
 
 	wake_lock_init(&gf_dev->fp_wakelock, WAKE_LOCK_SUSPEND, "fp_wakelock");
 
