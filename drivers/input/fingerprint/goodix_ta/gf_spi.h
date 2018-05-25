@@ -58,6 +58,8 @@ struct gf_device {
 	int irq;
 
 	struct task_struct *process;
+
+	bool enable_key_events;
 };
 
 void sendnlmsg(char *message);
