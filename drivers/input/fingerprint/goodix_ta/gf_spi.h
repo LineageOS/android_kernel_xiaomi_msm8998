@@ -60,6 +60,7 @@ struct gf_device {
 	struct task_struct *process;
 
 	bool enable_key_events;
+	bool proximity_state;
 };
 
 void sendnlmsg(char *message);

@@ -66,6 +66,13 @@ static void gf_irq_config(struct gf_device *gf_dev, bool state) {
 	gf_dev->irq_enabled = state;
 }
 
+static void gf_irq_update(struct gf_device *gf_dev) {
+	if (gf_dev->display_on || !gf_dev->proximity_state)
+		gf_irq_config(gf_dev, true);
+	else
+		gf_irq_config(gf_dev, false);
+}
+
 static void gf_kernel_key_input(struct gf_device *gf_dev, struct gf_key *gf_key)
 {
 	if (!gf_dev->enable_key_events)
@@ -243,10 +250,12 @@ static void gf_event_worker(struct work_struct *work)
 	case GF_NET_EVENT_FB_BLACK:
 		gf_dev->display_on = false;
 		set_user_nice(gf_dev->process, MIN_NICE);
+		gf_irq_update(gf_dev);
 		break;
 	case GF_NET_EVENT_FB_UNBLACK:
 		gf_dev->display_on = true;
 		set_user_nice(gf_dev->process, 0);
+		gf_irq_update(gf_dev);
 		break;
 	/*
 	 * IRQs are followed by fingerprint procesing, hold a wakelock to make
@@ -333,8 +342,31 @@ static DEVICE_ATTR(enable_key_events, S_IWUSR | S_IRUSR,
 	gf_enable_key_events_show,
 	gf_enable_key_events_store);
 
+static ssize_t gf_proximity_state_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct gf_device *gf_dev = dev_get_drvdata(dev);
+	int value;
+	int rc;
+
+	rc = kstrtoint(buf, 10, &value);
+	if (rc)
+		return -EINVAL;
+
+	gf_dev->proximity_state = !!value;
+
+	gf_irq_update(gf_dev);
+
+	return count;
+}
+
+static DEVICE_ATTR(proximity_state, S_IWUSR,
+	NULL,
+	gf_proximity_state_store);
+
 static struct attribute *gf_attributes[] = {
 	&dev_attr_enable_key_events.attr,
+	&dev_attr_proximity_state.attr,
 	NULL
 };
 
@@ -353,6 +385,7 @@ static int gf_probe(struct platform_device *pdev)
 	gf_dev->display_on = true;
 	gf_dev->irq_enabled = false;
 	gf_dev->enable_key_events = true;
+	gf_dev->proximity_state = 0;
 
 	platform_set_drvdata(pdev, gf_dev);
 
