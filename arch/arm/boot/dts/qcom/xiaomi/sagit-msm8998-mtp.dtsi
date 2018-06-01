@@ -841,6 +841,7 @@
 	qcom,fg-jeita-thresholds = <0 15 45 60>;
 	qcom,fg-esr-clamp-mohms = <60>;
 	qcom,fg-batt-temp-delta = <6>;
+	qcom,linearize-soc;
 };
 
 /{
