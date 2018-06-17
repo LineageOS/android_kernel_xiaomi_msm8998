@@ -2195,18 +2195,6 @@ static struct branch_clk gcc_mss_cfg_ahb_clk = {
 	},
 };
 
-static struct branch_clk gcc_mss_q6_bimc_axi_clk = {
-	.cbcr_reg = GCC_MSS_Q6_BIMC_AXI_CBCR,
-	.has_sibling = 1,
-	.base = &virt_base,
-	.c = {
-		.dbg_name = "gcc_mss_q6_bimc_axi_clk",
-		.always_on = true,
-		.ops = &clk_ops_branch,
-		CLK_INIT(gcc_mss_q6_bimc_axi_clk.c),
-	},
-};
-
 static struct branch_clk gcc_mss_mnoc_bimc_axi_clk = {
 	.cbcr_reg = GCC_MSS_MNOC_BIMC_AXI_CBCR,
 	.has_sibling = 1,
@@ -2394,7 +2382,6 @@ static struct mux_clk gcc_debug_mux = {
 		{ &gcc_dcc_ahb_clk.c, 0x0119 },
 		{ &ipa_clk.c, 0x011b },
 		{ &gcc_mss_cfg_ahb_clk.c, 0x011f },
-		{ &gcc_mss_q6_bimc_axi_clk.c, 0x0124 },
 		{ &gcc_mss_mnoc_bimc_axi_clk.c, 0x0120 },
 		{ &gcc_mss_snoc_axi_clk.c, 0x0123 },
 		{ &gcc_gpu_cfg_ahb_clk.c, 0x013b },
@@ -2634,7 +2621,6 @@ static struct clk_lookup msm_clocks_gcc_8998[] = {
 	CLK_LIST(gcc_prng_ahb_clk),
 	CLK_LIST(gcc_boot_rom_ahb_clk),
 	CLK_LIST(gcc_mss_cfg_ahb_clk),
-	CLK_LIST(gcc_mss_q6_bimc_axi_clk),
 	CLK_LIST(gcc_mss_mnoc_bimc_axi_clk),
 	CLK_LIST(gcc_mss_snoc_axi_clk),
 	CLK_LIST(gcc_hdmi_clkref_clk),
