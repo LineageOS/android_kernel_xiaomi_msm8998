@@ -112,6 +112,11 @@ static int hub_port_disable(struct usb_hub *hub, int port1, int set_state);
 static bool hub_port_warm_reset_required(struct usb_hub *hub, int port1,
 		u16 portstatus);
 
+#define USB_VENDOR_XIAOMI		0x2717
+#define USB_PRODUCT_XIAOMI_HEADSET	0x3801
+
+bool is_xiaomi_headset = false;
+
 static inline char *portspeed(struct usb_hub *hub, int portstatus)
 {
 	if (hub_is_superspeed(hub->hdev))
@@ -2119,6 +2124,11 @@ void usb_disconnect(struct usb_device **pdev)
 	dev_info(&udev->dev, "USB disconnect, device number %d\n",
 			udev->devnum);
 
+	if (is_xiaomi_headset) {
+		dev_info(&udev->dev, "xiaomi headset removed, devnum %d\n", udev->devnum);
+		is_xiaomi_headset = false;
+	}
+
 	/*
 	 * Ensure that the pm runtime code knows that the USB device
 	 * is in the process of being disconnected.
@@ -2445,6 +2455,12 @@ int usb_new_device(struct usb_device *udev)
 	/* export the usbdev device-node for libusb */
 	udev->dev.devt = MKDEV(USB_DEVICE_MAJOR,
 			(((udev->bus->busnum-1) * 128) + (udev->devnum-1)));
+
+	if (USB_VENDOR_XIAOMI == le16_to_cpu(udev->descriptor.idVendor)
+			 && USB_PRODUCT_XIAOMI_HEADSET == le16_to_cpu(udev->descriptor.idProduct)) {
+		dev_info(&udev->dev, "xiaomi headset identified, devnum %d\n", udev->devnum);
+		is_xiaomi_headset = true;
+	}
 
 	/* Tell the world! */
 	announce_device(udev);

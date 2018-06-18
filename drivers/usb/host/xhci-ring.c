@@ -68,6 +68,8 @@
 #include <linux/slab.h>
 #include "xhci.h"
 #include "xhci-trace.h"
+extern void kick_usbpd_vbus_sm(void);
+extern bool is_xiaomi_headset;
 
 /*
  * Returns zero if the TRB isn't in this segment, otherwise it returns the DMA
@@ -282,6 +284,9 @@ void xhci_ring_cmd_db(struct xhci_hcd *xhci)
 
 static bool xhci_mod_cmd_timer(struct xhci_hcd *xhci, unsigned long delay)
 {
+	if (is_xiaomi_headset)
+		delay = msecs_to_jiffies(1000);
+
 	return mod_delayed_work(system_wq, &xhci->cmd_timer, delay);
 }
 
@@ -344,6 +349,7 @@ static int xhci_abort_cmd_ring(struct xhci_hcd *xhci, unsigned long flags)
 {
 	u64 temp_64;
 	int ret;
+	int delay;
 
 	xhci_dbg(xhci, "Abort command ring\n");
 
@@ -359,9 +365,18 @@ static int xhci_abort_cmd_ring(struct xhci_hcd *xhci, unsigned long flags)
 	 * CRR negated in a timely manner, then it should assume
 	 * that the there are larger problems with the xHC and assert HCRST.
 	 */
+	if (is_xiaomi_headset) {
+		delay = 500 * 1000;
+	} else {
+		delay = 1000 * 1000;
+	}
+
 	ret = xhci_handshake_check_state(xhci, &xhci->op_regs->cmd_ring,
-			CMD_RING_RUNNING, 0, 1000 * 1000);
+			CMD_RING_RUNNING, 0, delay);
 	if (ret < 0) {
+		if (is_xiaomi_headset)
+			return -EPERM;
+
 		xhci_err(xhci,
 			 "Stop command ring failed, maybe the host is dead\n");
 		xhci->xhc_state |= XHCI_STATE_DYING;
@@ -1288,6 +1303,14 @@ void xhci_handle_command_timeout(struct work_struct *work)
 		xhci->cmd_ring_state = CMD_RING_STATE_ABORTED;
 		xhci_dbg(xhci, "Command timeout\n");
 		ret = xhci_abort_cmd_ring(xhci, flags);
+		if (ret == -EPERM) {
+			xhci_err(xhci, "Abort command ring failed reset usb device\n");
+			xhci_cleanup_command_queue(xhci);
+			spin_unlock_irqrestore(&xhci->lock, flags);
+			kick_usbpd_vbus_sm();
+			return;
+		}
+
 		if (unlikely(ret == -ESHUTDOWN)) {
 			xhci_err(xhci, "Abort command ring failed\n");
 			xhci_cleanup_command_queue(xhci);
