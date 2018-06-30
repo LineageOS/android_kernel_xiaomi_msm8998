@@ -105,6 +105,7 @@ static int mhi_process_event_ring(
 			__pm_stay_awake(&mhi_dev_ctxt->w_lock);
 			chan = MHI_EV_READ_CHID(EV_CHID, &event_to_process);
 			if (unlikely(!VALID_CHAN_NR(chan))) {
+				__pm_relax(&mhi_dev_ctxt->w_lock);
 				mhi_log(mhi_dev_ctxt, MHI_MSG_ERROR,
 					"Invalid chan:%d\n", chan);
 				break;
