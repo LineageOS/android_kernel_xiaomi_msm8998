@@ -12,6 +12,7 @@
 #ifndef __Q6AFE_V2_H__
 #define __Q6AFE_V2_H__
 #include <sound/apr_audio-v2.h>
+#include <sound/q6common.h>
 #include <linux/qdsp6v2/rtac.h>
 
 #define IN			0x000
@@ -458,4 +459,10 @@ int afe_request_dma_resources(uint8_t dma_type, uint8_t num_read_dma_channels,
 int afe_get_dma_idx(bool **ret_rddma_idx,
 				bool **ret_wrdma_idx);
 int afe_release_all_dma_resources(void);
+int q6afe_pack_and_set_param_in_band(u16 port_id, int index,
+					    struct param_hdr_v3 param_hdr,
+					    u8 *param_data);
+int q6afe_set_params(u16 port_id, int index,
+			    struct mem_mapping_hdr *mem_hdr,
+			    u8 *packed_param_data, u32 packed_data_size);
 #endif /* __Q6AFE_V2_H__ */

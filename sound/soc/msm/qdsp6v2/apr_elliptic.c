@@ -28,14 +28,10 @@ int afe_ultrasound_set_calib_data(int port,
 		struct afe_ultrasound_set_params_t *prot_config,
 		uint32_t length)
 {
+	struct param_hdr_v3 param_info = {0};
 	int ret = -EINVAL;
-	int index = 0;
-	struct afe_ultrasound_config_command configV;
-	struct afe_ultrasound_config_command *config;
 
-	config = &configV;
 	pr_debug("[ELUS]: inside %s\n", __func__);
-	memset(config, 0, sizeof(struct afe_ultrasound_config_command));
 	if (!prot_config) {
 		pr_err("%s Invalid params\n", __func__);
 		goto fail_cmd;
@@ -44,52 +40,19 @@ int afe_ultrasound_set_calib_data(int port,
 		pr_err("%s invalid port %d\n", __func__, port);
 		goto fail_cmd;
 	}
-	index = q6audio_get_port_index(port);
-	config->pdata.module_id = module_id;
-	config->hdr.hdr_field = APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
-						  APR_HDR_LEN(APR_HDR_SIZE),
-						  APR_PKT_VER);
-	config->hdr.pkt_size = sizeof(struct afe_ultrasound_config_command);
-	config->hdr.src_port = 0;
-	config->hdr.dest_port = 0;
-	config->hdr.token = index;
-	config->hdr.opcode = AFE_PORT_CMD_SET_PARAM_V2;
-	config->param.port_id = q6audio_get_port_id(port);
-	config->param.payload_size =
-			sizeof(struct afe_ultrasound_config_command) -
-			sizeof(config->hdr) - sizeof(config->param);
-	config->pdata.param_id = param_id;
-	config->pdata.param_size = length;
+	param_info.module_id = module_id;
+	param_info.instance_id = INSTANCE_ID_0;
+	param_info.param_id = param_id;
+	param_info.param_size = length;
 	pr_debug("[ELUS]: param_size %d\n", length);
-	memcpy(&config->prot_config, prot_config,
-		   sizeof(struct afe_ultrasound_set_params_t));
-	atomic_set(elus_afe.ptr_state, 1);
-	ret = apr_send_pkt(*elus_afe.ptr_apr, (uint32_t *) config);
-	if (ret < 0) {
-		pr_err("%s: Setting param for port %d param[0x%x]failed\n",
-			   __func__, port, param_id);
-		goto fail_cmd;
-	}
-	ret = wait_event_timeout(elus_afe.ptr_wait[index],
-		(atomic_read(elus_afe.ptr_state) == 0),
-		msecs_to_jiffies(elus_afe.timeout_ms*10));
-	if (!ret) {
-		pr_err("%s: wait_event timeout\n", __func__);
-		ret = -EINVAL;
-		goto fail_cmd;
-	}
-	if (atomic_read(elus_afe.ptr_status) != 0) {
-		pr_err("%s: config cmd failed\n", __func__);
-		ret = -EINVAL;
-		goto fail_cmd;
-	}
-	ret = 0;
+	ret = q6afe_pack_and_set_param_in_band(port,
+					       q6audio_get_port_index(port),
+					       param_info, (u8 *) prot_config);
 fail_cmd:
 	pr_debug("%s config->pdata.param_id %x status %d\n",
-	__func__, config->pdata.param_id, ret);
+	__func__, param_info.param_id, ret);
 	return ret;
 }
-
 
 int32_t ultrasound_apr_set(int32_t port_id, uint32_t *param_id,
 	u8 *user_params, int32_t length) {
@@ -222,4 +185,3 @@ int32_t elliptic_process_apr_payload(uint32_t *payload)
 	}
 	return ret;
 }
-
