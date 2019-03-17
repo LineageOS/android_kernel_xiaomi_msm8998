@@ -9170,13 +9170,10 @@ static int msm_init_wsa_dev(struct platform_device *pdev,
 		dev_dbg(&pdev->dev,
 			 "%s: wsa-max-devs property missing in DT %s, ret = %d\n",
 			 __func__, pdev->dev.of_node->full_name, ret);
-#ifdef CONFIG_MACH_XIAOMI_MSM8998
-		ret = 0;
-#endif
 		goto err_dt;
 	}
 	if (wsa_max_devs == 0) {
-		dev_warn(&pdev->dev,
+		dev_dbg(&pdev->dev,
 			 "%s: Max WSA devices is 0 for this target?\n",
 			 __func__);
 		goto err_dt;
