@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -596,15 +596,19 @@ QDF_STATUS csr_scan_request(tpAniSirGlobal pMac, uint16_t sessionId,
 				cfg_prm->scan_adaptive_dwell_mode;
 	}
 
-	if (scan_req->scan_flags & SME_SCAN_FLAG_HIGH_ACCURACY)
-		scan_req->scan_adaptive_dwell_mode = WMI_DWELL_MODE_STATIC;
+	if (cfg_prm->honour_nl_scan_policy_flags) {
+		if (scan_req->scan_flags & SME_SCAN_FLAG_HIGH_ACCURACY)
+			scan_req->scan_adaptive_dwell_mode =
+					WMI_DWELL_MODE_STATIC;
 
-	if (scan_req->scan_flags & SME_SCAN_FLAG_LOW_POWER ||
-	    scan_req->scan_flags & SME_SCAN_FLAG_LOW_SPAN) {
-		scan_req->scan_adaptive_dwell_mode = WMI_DWELL_MODE_AGGRESSIVE;
+		if (scan_req->scan_flags & SME_SCAN_FLAG_LOW_POWER ||
+		    scan_req->scan_flags & SME_SCAN_FLAG_LOW_SPAN)
+			scan_req->scan_adaptive_dwell_mode =
+					WMI_DWELL_MODE_AGGRESSIVE;
+
+		sme_debug("Set scan adaptive dwell mode %d ",
+			  scan_req->scan_adaptive_dwell_mode);
 	}
-	sme_debug("Set scan adaptive dwell mode %d ",
-					scan_req->scan_adaptive_dwell_mode);
 	status = csr_scan_copy_request(pMac, &scan_cmd->u.scanCmd.u.scanRequest,
 				       scan_req);
 	/*
@@ -3795,7 +3799,6 @@ static void csr_move_temp_scan_results_to_main_list(tpAniSirGlobal pMac,
 						    uint8_t reason,
 						    uint8_t sessionId)
 {
-	tCsrRoamSession *pSession;
 	uint32_t i;
 	bool found_11d_ctry = false;
 
@@ -3811,9 +3814,10 @@ static void csr_move_temp_scan_results_to_main_list(tpAniSirGlobal pMac,
 	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
 		if (!CSR_IS_SESSION_VALID(pMac, i))
 			continue;
-		pSession = CSR_GET_SESSION(pMac, i);
-		if (csr_is_conn_state_connected(pMac, i)) {
-			sme_debug("No need to update CC in connected state");
+		if (csr_is_conn_state_connected_infra_ap(pMac, i) ||
+		    csr_is_conn_state_connected_ibss(pMac, i) ||
+		    csr_is_conn_state_connected_wds(pMac, i)) {
+			sme_debug("No need to update CC in softap/ibss/wds");
 			return;
 		}
 	}
