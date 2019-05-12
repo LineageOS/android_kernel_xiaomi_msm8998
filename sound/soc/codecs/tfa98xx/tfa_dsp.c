@@ -3020,6 +3020,24 @@ enum Tfa98xx_Error tfaRunWaitCalibration(Tfa98xx_handle_t handle, int *calibrate
 	return err;
 }
 
+enum tfa_error tfa98xxTotfa(enum Tfa98xx_Error err)
+{
+	switch(err) {
+	case Tfa98xx_Error_Ok:
+		return tfa_error_ok;
+	case Tfa98xx_Error_Device:
+		return tfa_error_device;
+	case Tfa98xx_Error_Bad_Parameter:
+		return tfa_error_bad_param;
+	case Tfa98xx_Error_NoClock:
+		return tfa_error_noclock;
+	case Tfa98xx_Error_StateTimedOut:
+		return tfa_error_timeout;
+	default:
+		return tfa_error_bad_param;
+	}
+}
+
 enum tfa_error tfa_start(int next_profile, int *vstep)
 {
 	enum Tfa98xx_Error err = Tfa98xx_Error_Ok;
@@ -3152,7 +3170,7 @@ error_exit:
 			show_current_state(dev);
 		tfaContClose(dev); /* close all of them */
 	}
-	return err;
+	return tfa98xxTotfa(err);
 }
 
 enum tfa_error tfa_stop(void)
@@ -3212,7 +3230,7 @@ enum tfa_error tfa_stop(void)
 error_exit:
 	for (dev = 0; dev < devcount; dev++)
 		tfaContClose(dev); /* close all of them */
-	return err;
+	return tfa98xxTotfa(err);
 }
 
 /*
@@ -3264,7 +3282,7 @@ enum tfa_error tfa_reset(void)
 		tfaContClose(dev);
 	}
 
-	return err;
+	return tfa98xxTotfa(err);
 }
 
 /*
