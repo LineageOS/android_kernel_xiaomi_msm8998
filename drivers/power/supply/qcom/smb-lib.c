@@ -2014,7 +2014,7 @@ int smblib_set_prop_system_temp_level(struct smb_charger *chg,
 	if (chg->system_temp_level == 0)
 		return vote(chg->usb_icl_votable, THERMAL_DAEMON_VOTER, false, 0);
 
-	switch (chg->usb_psy_desc.type) {
+	switch (chg->real_charger_type) {
 	case POWER_SUPPLY_TYPE_USB_HVDCP:
 		thermal_mitigation = chg->thermal_mitigation_qc2;
 		break;
