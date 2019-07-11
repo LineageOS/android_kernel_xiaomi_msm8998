@@ -20,7 +20,6 @@
 #include "msm8998-camera.dtsi"
 #include "../msm8998-mdss-panels.dtsi"
 #include "msm8998-mdss-panels.dtsi"
-#include "msm8998-blsp.dtsi"
 #include "msm8998-audio.dtsi"
 #include "msm8998-mdss.dtsi"
 
@@ -837,6 +836,7 @@
 	qcom,fg-recharge-soc-thr = <99>;
 	qcom,fg-cutoff-voltage = <3400>;
 	qcom,fg-empty-voltage = <3100>;
+	qcom,fg-cutoff-current = <200>;
 	qcom,fg-jeita-hyst-temp = <0>;
 	qcom,fg-jeita-thresholds = <0 15 45 60>;
 	qcom,fg-esr-clamp-mohms = <60>;

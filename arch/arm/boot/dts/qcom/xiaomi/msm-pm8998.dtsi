@@ -13,6 +13,7 @@
 &spmi_bus {
 	qcom,pm8998@0 {
 		qcom,power-on@800 {
+			qcom,pon-dbc-delay = <62500>;
 			qcom,kpdpwr-sw-debounce;
 			qcom,pon_1 {
 				qcom,support-reset = <1>;
