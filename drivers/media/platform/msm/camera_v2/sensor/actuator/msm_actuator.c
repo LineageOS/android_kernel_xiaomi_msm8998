@@ -1168,12 +1168,6 @@ static int32_t msm_actuator_power_down(struct msm_actuator_ctrl_t *a_ctrl)
 {
 	int32_t rc = 0;
 	enum msm_sensor_power_seq_gpio_t gpio;
-#ifdef CONFIG_MACH_XIAOMI_MSM8998
-	struct device_node *src_node = NULL;
-	int i = 0;
-	const char *af_name;
-	struct device_node *of_node = a_ctrl->pdev->dev.of_node;
-#endif
 
 	CDBG("Enter\n");
 	if (a_ctrl->actuator_state != ACT_DISABLE_STATE) {
@@ -1233,70 +1227,6 @@ static int32_t msm_actuator_power_down(struct msm_actuator_ctrl_t *a_ctrl)
 		a_ctrl->i2c_tbl_index = 0;
 		a_ctrl->actuator_state = ACT_OPS_INACTIVE;
 	}
-#ifdef CONFIG_MACH_XIAOMI_MSM8998
-	else {
-		if (of_gpio_count(of_node)) {
-			for (gpio = SENSOR_GPIO_AF_PWDM;
-				gpio < SENSOR_GPIO_MAX; gpio++) {
-				if (a_ctrl->gconf &&
-					a_ctrl->gconf->gpio_num_info &&
-					a_ctrl->gconf->gpio_num_info->valid[gpio] == 1) {
-					gpio_set_value_cansleep(
-							a_ctrl->gconf->gpio_num_info->
-							gpio_num[gpio],
-							GPIOF_OUT_INIT_LOW);
-
-					if (a_ctrl->cam_pinctrl_status) {
-						rc = pinctrl_select_state(
-							a_ctrl->pinctrl_info.pinctrl,
-							a_ctrl->pinctrl_info.gpio_state_suspend);
-						if (rc < 0)
-							pr_err("ERR:%s:%d cannot set pin to suspend state: %d",
-								__func__, __LINE__, rc);
-
-						devm_pinctrl_put(a_ctrl->pinctrl_info.pinctrl);
-					}
-					a_ctrl->cam_pinctrl_status = 0;
-					rc = msm_camera_request_gpio_table(
-						a_ctrl->gconf->cam_gpio_req_tbl,
-						a_ctrl->gconf->cam_gpio_req_tbl_size,
-						0);
-					if (rc < 0)
-						pr_err("ERR:%s:Failed in selecting state in actuator power down: %d\n", __func__, rc);
-				}
-			}
-		} else {
-			for (i = 0; i < a_ctrl->vreg_cfg.num_vreg; i++) {
-				src_node = of_parse_phandle(of_node, "cam_vaf-supply", 0);
-				if (!src_node) {
-					pr_err("actuator node is NULL\n");
-					continue;
-				}
-				rc = of_property_read_string(src_node, "regulator-name", &af_name);
-				if (rc < 0) {
-					if (strcmp(af_name, "vaf_gpio_supply") == 0) {
-						pr_err("read regulator-name fail\n");
-						of_node_put(src_node);
-						src_node = NULL;
-						break;
-					}
-				} else {
-					pr_err("actuator regulator name = %s", af_name);
-					if (gpio_get_value_cansleep(29)) {
-						pr_err("actuator power down again\n");
-						for (i = 0; i < 3; i++) {
-							rc = msm_actuator_vreg_control(a_ctrl, 0);
-							if (rc < 0)
-								pr_err("%s power down again failed %d\n", __func__, __LINE__);
-						}
-					}
-				}
-				of_node_put(src_node);
-				src_node = NULL;
-			}
-		}
-	}
-#endif
 
 	CDBG("Exit\n");
 	return rc;

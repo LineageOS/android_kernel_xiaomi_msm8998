@@ -35,7 +35,7 @@ DEFINE_MSM_MUTEX(msm_ois_mutex);
 
 #ifdef CONFIG_MACH_CHIRON
 bool ois_spi_work_flag = true;
-bool ois_check_flag;
+bool ois_check_flag = false;
 #endif
 
 static struct v4l2_file_operations msm_ois_v4l2_subdev_fops;
