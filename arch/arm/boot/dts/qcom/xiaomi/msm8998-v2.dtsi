@@ -19,6 +19,3 @@
 			"tcsr_clamp_dig_n_1p8";
 };
 
-&msm_gpu {
-	qcom,restrict-pwrlevel = <1>;	
-};

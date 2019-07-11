@@ -20,7 +20,6 @@
 #include "msm8998-camera.dtsi"
 #include "../msm8998-mdss-panels.dtsi"
 #include "msm8998-mdss-panels.dtsi"
-#include "msm8998-blsp.dtsi"
 #include "msm8998-audio.dtsi"
 #include "msm8998-mdss.dtsi"
 
@@ -796,13 +795,14 @@
 
 &red_led { /* Notification LED */
 	qcom,use-blink;
-	qcom,start-idx = <0>;
-	qcom,idx-len = <8>;
-	qcom,duty-pcts = [ 00 0E 1C 2A 38 46 54 64 ];
-	qcom,lut-flags = <31>; /* loop, ramp up, reverse, pause hi, pause lo */
-	qcom,pause-lo = <500>;
-	qcom,pause-hi = <500>;
-	qcom,ramp-step-ms = <50>;
+	qcom,start-idx = <1>;
+	qcom,idx-len = <20>;
+	qcom,duty-pcts = [00 06 10 20 32 44 54 5e 64 64
+			64 5e 54 44 32 20 10 06 00 00];
+	qcom,lut-flags = <3>;
+	qcom,pause-lo = <0>;
+	qcom,pause-hi = <0>;
+	qcom,ramp-step-ms = <128>;
 	linux,name = "white";
 };
 
@@ -837,6 +837,7 @@
 	qcom,fg-recharge-soc-thr = <99>;
 	qcom,fg-cutoff-voltage = <3400>;
 	qcom,fg-empty-voltage = <3100>;
+	qcom,fg-cutoff-current = <200>;
 	qcom,fg-jeita-hyst-temp = <0>;
 	qcom,fg-jeita-thresholds = <0 15 45 60>;
 	qcom,fg-esr-clamp-mohms = <60>;
