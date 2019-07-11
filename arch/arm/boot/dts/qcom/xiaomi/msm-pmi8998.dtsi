@@ -10,12 +10,6 @@
  * GNU General Public License for more details.
  */
 
-&pmi8998_gpios {
-	gpio@c400 {
-		status = "okay";
-	};
-};
-
 &pmi8998_fg {
 	qcom,fg-memif@4400 {
 		interrupts = <0x2 0x44 0x1 IRQ_TYPE_EDGE_BOTH>,
@@ -23,10 +17,6 @@
 		interrupt-names = "mem-xcp",
 				"dma-grant";
 	};
-};
-
-&pmi8998_pwm_2 {
-	status = "okay";
 };
 
 &red_led {
