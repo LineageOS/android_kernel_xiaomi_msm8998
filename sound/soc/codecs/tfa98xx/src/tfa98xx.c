@@ -2445,9 +2445,10 @@ static int tfa98xx_startup(struct snd_pcm_substream *substream,
 
 	kfree(basename);
 
-	return snd_pcm_hw_constraint_list(substream->runtime, 0,
-		SNDRV_PCM_HW_PARAM_RATE,
-		&tfa98xx->rate_constraint);
+	/* as QUALCOMM FAE suggested, we don't need to calling
+	 * 'snd_pcm_hw_constraint_list' on QUALCOMM platform.
+	 */
+	return 0;
 }
 
 static int tfa98xx_set_dai_sysclk(struct snd_soc_dai *codec_dai,
