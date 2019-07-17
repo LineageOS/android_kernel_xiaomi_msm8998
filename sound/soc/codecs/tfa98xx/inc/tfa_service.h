@@ -20,15 +20,7 @@ extern "C" {
 #include "NXP_I2C.h"
 #endif
 
-/* Linux kernel module defines TFA98XX_GIT_VERSIONS in the linux_driver/Makefile */
-#if !defined(TFA98XX_GIT_VERSIONS)
-#include "versions.h"
-#endif
-#ifdef TFA98XX_GIT_VERSIONS
-  #define TFA98XX_API_REV_STR "v6.6.3"/*TFA98XX_GIT_VERSIONS*/
-#else
-  #define TFA98XX_API_REV_STR "v6.6.3"
-#endif
+#define TFA98XX_API_REV_STR "v6.6.3"
 
 #include "tfa_device.h"
 
