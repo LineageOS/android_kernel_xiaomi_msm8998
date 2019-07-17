@@ -22,6 +22,7 @@
 #include <linux/debugfs.h>
 #include <linux/version.h>
 #include <linux/input.h>
+#include <linux/mfd/spk-id.h>
 #include "config.h"
 #include "tfa98xx.h"
 #include "tfa.h"
@@ -47,6 +48,9 @@
 #define TFA98XX_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
 #define TF98XX_MAX_DSP_START_TRY_COUNT	10
+
+#define TFA98XX_AAC_FW_NAME		"tfa98xx_aac.cnt"
+#define TFA98XX_SSI_FW_NAME		"tfa98xx_ssi.cnt"
 
 /* data accessible by all instances */
 static struct kmem_cache *tfa98xx_cache = NULL;  /* Memory pool used for DSP messages */
@@ -115,6 +119,34 @@ static const struct tfa98xx_rate rate_to_fssel[] = {
 	{ 48000, 8 },
 };
 
+
+static int nxp_spk_id_get(struct device_node *np)
+{
+	int state;
+	int id;
+
+	state = spk_id_get_pin_3state(np);
+	if (state < 0) {
+		pr_err("%s: Can not get id pin state, %d\n", __func__, state);
+		return VENDOR_ID_NONE;
+	}
+
+	switch (state) {
+	case PIN_PULL_DOWN:
+		id = VENDOR_ID_AAC;
+		break;
+	case PIN_PULL_UP:
+		id = VENDOR_ID_UNKNOWN;
+		break;
+	case PIN_FLOAT:
+		id = VENDOR_ID_SSI;
+		break;
+	default:
+		id = VENDOR_ID_UNKNOWN;
+		break;
+	}
+	return id;
+}
 
 static inline char *tfa_cont_profile_name(struct tfa98xx *tfa98xx, int prof_idx)
 {
@@ -2915,6 +2947,7 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 	int irq_flags;
 	unsigned int reg;
 	int ret;
+	int spk_name;
 
 	pr_info("addr=0x%x\n", i2c->addr);
 
@@ -2973,6 +3006,26 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 			GPIOF_DIR_IN, "TFA98XX_INT");
 		if (ret)
 			return ret;
+	}
+
+	tfa98xx->spk_id_gpio_p = of_parse_phandle(np,
+				"spk-id", 0);
+	if (tfa98xx->spk_id_gpio_p) {
+		spk_name = nxp_spk_id_get(tfa98xx->spk_id_gpio_p);
+		switch (spk_name) {
+		case VENDOR_ID_AAC:
+			fw_name = TFA98XX_AAC_FW_NAME;
+			break;
+		case VENDOR_ID_SSI:
+			fw_name = TFA98XX_SSI_FW_NAME;
+			break;
+		default:
+			dev_err(&i2c->dev, "Unsupport spk id. spk is %d\n", spk_name);
+			break;
+		}
+	} else {
+		dev_err(&i2c->dev, "property %s not detected in node %s",
+			"spk-id", np->full_name);
 	}
 
 	/* Power up! */

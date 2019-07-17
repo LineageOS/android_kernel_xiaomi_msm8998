@@ -109,6 +109,7 @@ struct tfa98xx {
 	enum tfa_reset_polarity reset_polarity; 
 	struct list_head list;
 	struct tfa_device *tfa;
+	struct device_node *spk_id_gpio_p;
 	int vstep;
 	int profile;
 	int prof_vsteps[TFACONT_MAXPROFS]; /* store vstep per profile (single device) */
