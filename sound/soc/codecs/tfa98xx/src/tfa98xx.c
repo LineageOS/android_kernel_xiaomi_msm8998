@@ -1215,7 +1215,7 @@ static int tfa98xx_set_profile(struct snd_kcontrol *kcontrol,
 		/* Don't call tfa_dev_start() if there is no clock. */
 		mutex_lock(&tfa98xx->dsp_lock);
 		tfa98xx_dsp_system_stable(tfa98xx->tfa, &ready);
-		if (ready) {
+		if (ready && (tfa_dev_get_state(tfa98xx->tfa) == TFA_STATE_OPERATING)) {
 			/* Also re-enables the interrupts */
 			err = tfa98xx_tfa_start(tfa98xx, prof_idx, tfa98xx->vstep);
 			if (err) {
