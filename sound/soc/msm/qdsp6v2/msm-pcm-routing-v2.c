@@ -48,7 +48,7 @@
 #include "q6voice.h"
 #include "sound/q6lsm.h"
 
-#ifdef CONFIG_MACH_XIAOMI_MSM8998
+#ifdef CONFIG_MACH_CHIRON
 #include "msm-elliptic.h"
 #endif
 
@@ -17096,7 +17096,7 @@ static int msm_routing_probe(struct snd_soc_platform *platform)
 		platform, msm_routing_feature_support_mixer_controls,
 		ARRAY_SIZE(msm_routing_feature_support_mixer_controls));
 
-#ifdef CONFIG_MACH_XIAOMI_MSM8998
+#ifdef CONFIG_MACH_CHIRON
 	elliptic_add_platform_controls(platform);
 #endif
 
