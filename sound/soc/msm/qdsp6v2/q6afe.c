@@ -30,7 +30,7 @@
 #include <linux/qdsp6v2/apr_tal.h>
 #include <sound/q6core.h>
 
-#ifdef CONFIG_MACH_XIAOMI_MSM8998
+#ifdef CONFIG_MACH_CHIRON
 #include <sound/apr_elliptic.h>
 #endif
 
@@ -116,7 +116,7 @@ struct afe_ctl {
 	struct audio_cal_info_spk_prot_cfg	prot_cfg;
 	struct afe_spkr_prot_calib_get_resp	calib_data;
 
-#ifdef CONFIG_MACH_XIAOMI_MSM8998
+#ifdef CONFIG_MACH_CHIRON
 	struct afe_ultrasound_calib_get_resp	ultrasound_calib_data;
 #endif
 
@@ -624,7 +624,7 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 		if (!ret) {
 			return ret;
 		}
-#ifdef CONFIG_MACH_XIAOMI_MSM8998
+#ifdef CONFIG_MACH_CHIRON
 	} else if (data->opcode == ULTRASOUND_OPCODE) {
 		if (data->payload != NULL)
 			elliptic_process_apr_payload(data->payload);
@@ -1682,7 +1682,7 @@ fail_cmd:
 	return ret;
 }
 
-#ifdef CONFIG_MACH_XIAOMI_MSM8998
+#ifdef CONFIG_MACH_CHIRON
 /* ELUS Begin */
 afe_ultrasound_state_t elus_afe = {
 	.ptr_apr = &this_afe.apr,
