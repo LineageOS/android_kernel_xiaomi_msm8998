@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "943ba1d0_1ce18a27",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 1
+      },
+      "lineNbr": 9,
+      "author": {
+        "id": 17117
+      },
+      "writtenOn": "2019-07-23T20:19:28Z",
+      "side": 1,
+      "message": "No, it wasn\u0027t",
+      "range": {
+        "startLine": 9,
+        "startChar": 14,
+        "endLine": 9,
+        "endChar": 15
+      },
+      "revId": "016588625d50b914ce98af496f296ad14eee158e",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    }
+  ]
+}
