@@ -57,7 +57,6 @@ static int gprint_limiter;
 static bool tgt_assert_enable;
 
 #ifdef WLAN_DEBUG
-
 static ATH_DEBUG_MASK_DESCRIPTION g_fwlog_debug_description[] = {
 	{FWLOG_DEBUG, "fwlog"},
 };

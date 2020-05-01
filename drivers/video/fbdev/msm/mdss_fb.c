@@ -56,6 +56,8 @@
 #include "mdss_smmu.h"
 #include "mdss_mdp.h"
 
+#include "mdss_livedisplay.h"
+
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MDSS_FB_NUM 3
 #else
@@ -963,7 +965,7 @@ static int mdss_fb_create_sysfs(struct msm_fb_data_type *mfd)
 	rc = sysfs_create_group(&mfd->fbi->dev->kobj, &mdss_fb_attr_group);
 	if (rc)
 		pr_err("sysfs group creation failed, rc=%d\n", rc);
-	return rc;
+	return mdss_livedisplay_create_sysfs(mfd);
 }
 
 static void mdss_fb_remove_sysfs(struct msm_fb_data_type *mfd)
@@ -3992,7 +3994,7 @@ static int mdss_fb_set_par(struct fb_info *info)
 {
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
 	struct fb_var_screeninfo *var = &info->var;
-	int old_imgType, old_format;
+	int old_imgType, new_format;
 	int ret = 0;
 
 	ret = mdss_fb_pan_idle(mfd);
@@ -4075,12 +4077,11 @@ static int mdss_fb_set_par(struct fb_info *info)
 		mfd->fbi->fix.smem_len = PAGE_ALIGN(mfd->fbi->fix.line_length *
 				mfd->fbi->var.yres) * mfd->fb_page;
 
-	old_format = mfd->panel_info->out_format;
-	mfd->panel_info->out_format =
-			mdss_grayscale_to_mdp_format(var->grayscale);
-	if (!IS_ERR_VALUE(mfd->panel_info->out_format)) {
-		if (old_format != mfd->panel_info->out_format)
+	new_format = mdss_grayscale_to_mdp_format(var->grayscale);
+	if (!IS_ERR_VALUE(new_format)) {
+		if (new_format != mfd->panel_info->out_format)
 			mfd->panel_reconfig = true;
+		mfd->panel_info->out_format = new_format;
 	}
 
 	if (mdss_fb_is_hdmi_primary(mfd) && mfd->panel_reconfig)

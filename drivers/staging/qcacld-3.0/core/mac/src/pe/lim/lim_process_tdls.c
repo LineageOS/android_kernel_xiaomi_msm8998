@@ -70,8 +70,6 @@
 #include "cds_regdomain.h"
 #include "cds_utils.h"
 
-#define NO_SESSION 0xff
-
 /* define NO_PAD_TDLS_MIN_8023_SIZE to NOT padding: See CR#447630
    There was IOT issue with cisco 1252 open mode, where it pads
    discovery req/teardown frame with some junk value up to min size.
@@ -176,6 +174,7 @@ enum tdls_peer_capability {
 #define TID_AC_VI                  4
 #define TID_AC_BK                  1
 
+#ifdef WLAN_DEBUG
 static const uint8_t *lim_trace_tdls_action_string(uint8_t tdlsActionCode)
 {
 	switch (tdlsActionCode) {
@@ -192,6 +191,7 @@ static const uint8_t *lim_trace_tdls_action_string(uint8_t tdlsActionCode)
 	}
 	return (const uint8_t *)"UNKNOWN";
 }
+#endif
 
 /*
  * initialize TDLS setup list and related data structures.

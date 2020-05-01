@@ -32,12 +32,12 @@ ifeq ($(KERNEL_BUILD),1)
 	WLAN_ROOT := drivers/staging/qcacld-3.0
 	WLAN_COMMON_ROOT := ../qca-wifi-host-cmn
 	WLAN_COMMON_INC := $(WLAN_ROOT)/$(WLAN_COMMON_ROOT)
+	WLAN_DISABLE_BUILD_TAG := y
 endif
 
 # Make WLAN as open-source driver by default
 WLAN_OPEN_SOURCE := 1
 
-ifeq ($(KERNEL_BUILD), 0)
 	# These are configurable via Kconfig for kernel-based builds
 	# Need to explicitly configure for Android-based builds
 
@@ -244,6 +244,25 @@ endif
 	# Flag to enable MCC to SCC switch feature
 	CONFIG_MCC_TO_SCC_SWITCH := y
 
+
+
+# As per target team, build is done as follows:
+# Defconfig : build with default flags
+# Slub      : defconfig  + CONFIG_SLUB_DEBUG=y +
+#	      CONFIG_SLUB_DEBUG_ON=y + CONFIG_PAGE_POISONING=y
+# Perf      : Using appropriate msmXXXX-perf_defconfig
+#
+# Shipment builds (user variants) should not have any debug feature
+# enabled. This is identified using 'TARGET_BUILD_VARIANT'. Slub builds
+# are identified using the CONFIG_SLUB_DEBUG_ON configuration. Since
+# there is no other way to identify defconfig builds, QCOMs internal
+# representation of perf builds (identified using the string 'perf'),
+# is used to identify if the build is a slub or defconfig one. This
+# way no critical debug feature will be enabled for perf and shipment
+# builds. Other OEMs are also protected using the TARGET_BUILD_VARIANT
+# config.
+ifeq ($(TARGET_BUILD_VARIANT),eng)
+	CONFIG_FEATURE_PKTLOG := y
 endif
 
 #enable spectral scan feature
@@ -288,9 +307,8 @@ CONFIG_WLAN_FW_THERMAL_MITIGATION := n
 BUILD_DEBUG_VERSION := 0
 
 #Enable this flag to build driver in diag version
-BUILD_DIAG_VERSION := 1
+BUILD_DIAG_VERSION := 0
 
-#Do we panic on bug?  default is to warn
 ifeq ($(CONFIG_SLUB_DEBUG), y)
 	PANIC_ON_BUG := 1
 	WLAN_WARN_ON_ASSERT := 1
@@ -1219,9 +1237,7 @@ ifeq ($(CONFIG_REMOVE_PKT_LOG), 0)
 INCS +=		$(PKTLOG_INC)
 endif
 
-ifeq ($(BUILD_DIAG_VERSION), 1)
 INCS +=		$(HOST_DIAG_LOG_INC)
-endif
 
 OBJS :=		$(HDD_OBJS) \
 		$(EPPING_OBJS) \
@@ -1500,13 +1516,17 @@ ifeq ($(CONFIG_WLAN_FEATURE_LPSS),y)
 CDEFINES += -DWLAN_FEATURE_LPSS
 endif
 
-ifeq ($(CONFIG_QCA_CLD_DEBUG),y)
+ifeq ($(TARGET_BUILD_VARIANT),eng)
 CDEFINES += -DDESC_DUP_DETECT_DEBUG
 CDEFINES += -DDEBUG_RX_RING_BUFFER
 endif
 
 ifeq ($(PANIC_ON_BUG),1)
 CDEFINES += -DPANIC_ON_BUG
+endif
+
+ifeq ($(WLAN_WARN_ON_ASSERT), 1)
+CDEFINES += -DWLAN_WARN_ON_ASSERT
 endif
 
 ifeq ($(WLAN_OPEN_SOURCE), 1)
@@ -1828,7 +1848,9 @@ ifeq (y,$(filter y,$(CONFIG_CNSS_EOS) $(CONFIG_ICNSS)))
 CONFIG_HELIUMPLUS := y
 CONFIG_64BIT_PADDR := y
 CONFIG_FEATURE_TSO := y
+ifeq ($(BUILD_DEBUG_VERSION),1)
 CONFIG_FEATURE_TSO_DEBUG := y
+endif
 ifneq ($(CONFIG_FORCE_ALLOC_FROM_DMA_ZONE), y)
 CONFIG_ENABLE_DEBUG_ADDRESS_MARKING := y
 endif
@@ -1954,10 +1976,6 @@ EXTRA_CFLAGS += -Wmissing-prototypes
 ifeq ($(call cc-option-yn, -Wheader-guard),y)
 EXTRA_CFLAGS += -Wheader-guard
 endif
-
-# To build without debug just ignore not used code.
-EXTRA_CFLAGS += $(call cc-disable-warning,unused-variable,)
-EXTRA_CFLAGS += $(call cc-disable-warning,unused-function,)
 
 # If the module name is not "wlan", then the define MULTI_IF_NAME to be the
 # same a the QCA CHIP name. The host driver will then append MULTI_IF_NAME to
