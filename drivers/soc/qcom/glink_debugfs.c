@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2015, 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -558,10 +558,10 @@ void glink_dfs_update_list(struct dentry *curr_dent, struct dentry *parent,
 			spin_lock_init(&dbgfs_dent_s->file_list_lock_lhb0);
 			dbgfs_dent_s->parent = parent;
 			dbgfs_dent_s->self = curr_dent;
-			strscpy(dbgfs_dent_s->self_name, curr,
-				sizeof(dbgfs_dent_s->self_name));
-			strscpy(dbgfs_dent_s->par_name, par_dir,
-				sizeof(dbgfs_dent_s->par_name));
+			strlcpy(dbgfs_dent_s->self_name,
+				curr, sizeof(dbgfs_dent_s->self_name));
+			strlcpy(dbgfs_dent_s->par_name, par_dir,
+					sizeof(dbgfs_dent_s->par_name));
 			mutex_lock(&dent_list_lock_lha0);
 			list_add_tail(&dbgfs_dent_s->list_node, &dent_list);
 			mutex_unlock(&dent_list_lock_lha0);

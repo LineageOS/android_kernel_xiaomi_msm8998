@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -830,10 +830,10 @@ long msm_ion_custom_ioctl(struct ion_client *client,
 		int ret;
 
 		ret = ion_walk_heaps(client, data.prefetch_data.heap_id,
-			(enum ion_heap_type)
-			ION_HEAP_TYPE_SECURE_DMA,
-			(void *)data.prefetch_data.len,
-			ion_secure_cma_drain_pool);
+				     (enum ion_heap_type)
+				     ION_HEAP_TYPE_SECURE_DMA,
+				     (void *)data.prefetch_data.len,
+				     ion_secure_cma_drain_pool);
 
 		if (ret)
 			return ret;
