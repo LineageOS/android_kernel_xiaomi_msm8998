@@ -343,18 +343,12 @@ static void do_overwritten(void)
 	return;
 }
 
-static noinline void __lkdtm_CORRUPT_STACK(void *stack)
-{
-	memset(stack, 'a', 64);
-}
-
 static noinline void corrupt_stack(void)
 {
 	/* Use default char array length that triggers stack protection. */
 	char data[8];
-	__lkdtm_CORRUPT_STACK(&data);
 
-	pr_info("Corrupted stack with '%16s'...\n", data);
+	memset((void *)data, 0, 64);
 }
 
 static void execute_location(void *dst)
@@ -387,6 +381,7 @@ static void execute_user_location(void *dst)
 
 static void lkdtm_do_action(enum ctype which)
 {
+	int *ptr = NULL;
 	switch (which) {
 	case CT_PANIC:
 		panic("dumptest");
@@ -398,7 +393,7 @@ static void lkdtm_do_action(enum ctype which)
 		WARN_ON(1);
 		break;
 	case CT_EXCEPTION:
-		*((volatile int *) 0) = 0;
+		*ptr = 0;
 		break;
 	case CT_LOOP:
 		for (;;)

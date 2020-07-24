@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2017, 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1529,7 +1529,6 @@ void ipahal_get_disable_aggr_valmask(struct ipahal_reg_valmask *valmask)
 		IPAHAL_ERR("Input error\n");
 		return;
 	}
-
 	valmask->val = (1 << IPA_ENDP_INIT_AGGR_n_AGGR_FORCE_CLOSE_SHFT) &
 		IPA_ENDP_INIT_AGGR_n_AGGR_FORCE_CLOSE_BMSK;
 	valmask->mask = IPA_ENDP_INIT_AGGR_n_AGGR_FORCE_CLOSE_BMSK;
@@ -1582,7 +1581,7 @@ void ipahal_get_aggr_force_close_valmask(int ep_idx,
 		return;
 	}
 	IPA_SETFIELD_IN_REG(valmask->val, 1 << ep_idx, shft, bmsk);
-	valmask->mask = bmsk;
+	valmask->mask = bmsk << shft;
 }
 
 void ipahal_get_fltrt_hash_flush_valmask(

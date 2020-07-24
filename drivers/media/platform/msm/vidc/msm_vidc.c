@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1545,10 +1545,11 @@ int msm_vidc_destroy(struct msm_vidc_inst *inst)
 static void close_helper(struct kref *kref)
 {
 	struct msm_vidc_inst *inst = container_of(kref,
-			struct msm_vidc_inst, kref);
+					struct msm_vidc_inst, kref);
 
 	msm_vidc_destroy(inst);
 }
+
 
 int msm_vidc_close(void *instance)
 {
