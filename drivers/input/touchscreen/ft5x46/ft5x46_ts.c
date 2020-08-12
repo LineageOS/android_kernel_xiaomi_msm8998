@@ -12,7 +12,6 @@
  * GNU General Public License for more details.
  *
  */
-#include <linux/hwinfo.h>
 #include <linux/input/ft5x46_ts.h>
 #include "ft8716_pramboot.h"
 
