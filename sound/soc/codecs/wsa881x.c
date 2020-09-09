@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2018,2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -363,7 +363,7 @@ static ssize_t wsa881x_swrslave_reg_show(char __user *ubuf, size_t count,
 		swr_read(dbgwsa881x->swr_slave, devnum,
 			i, &reg_val, 1);
 		len = snprintf(tmp_buf, sizeof(tmp_buf), "0x%.3x: 0x%.2x\n",
-			       i, (reg_val & 0xFF));
+				 i, (reg_val & 0xFF));
 		if ((total + len) >= count - 1)
 			break;
 		if (copy_to_user((ubuf + total), tmp_buf, len)) {
