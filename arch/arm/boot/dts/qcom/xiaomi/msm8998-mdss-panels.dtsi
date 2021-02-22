@@ -14,6 +14,7 @@
 #include "dsi-panel-lgd-fhd-td4322-cmd.dtsi"
 #include "dsi-panel-jdi-fhd-nt35596s-video.dtsi"
 #include "dsi-panel-jdi-fhd-nt35596s-pro-video.dtsi"
+#include "dsi-panel-ebbg-fhd-ft8716-video.dtsi"
 
 &soc {
 	dsi_panel_pwr_supply: dsi_panel_pwr_supply {
