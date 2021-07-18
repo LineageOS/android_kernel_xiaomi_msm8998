@@ -389,6 +389,10 @@
 	qcom,panel-supply-entries = <&dsi_panel_pwr_supply_jdi_nt35596s>;
 };
 
+&dsi_ebbg_fhd_ft8716_video {
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply_ebbg_ft8716>;
+};
+
 &mem_client_3_size {
 	qcom,peripheral-size = <0x500000>;
 };
