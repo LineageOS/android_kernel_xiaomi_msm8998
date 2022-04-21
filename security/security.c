@@ -11,6 +11,7 @@
  *	(at your option) any later version.
  */
 
+#include <linux/bpf.h>
 #include <linux/capability.h>
 #include <linux/dcache.h>
 #include <linux/module.h>
@@ -706,7 +707,7 @@ int security_inode_killpriv(struct dentry *dentry)
 	return call_int_hook(inode_killpriv, 0, dentry);
 }
 
-int security_inode_getsecurity(const struct inode *inode, const char *name, void **buffer, bool alloc)
+int security_inode_getsecurity(struct inode *inode, const char *name, void **buffer, bool alloc)
 {
 	if (unlikely(IS_PRIVATE(inode)))
 		return -EOPNOTSUPP;
@@ -730,7 +731,7 @@ int security_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer
 }
 EXPORT_SYMBOL(security_inode_listsecurity);
 
-void security_inode_getsecid(const struct inode *inode, u32 *secid)
+void security_inode_getsecid(struct inode *inode, u32 *secid)
 {
 	call_void_hook(inode_getsecid, inode, secid);
 }
@@ -1177,6 +1178,12 @@ void security_release_secctx(char *secdata, u32 seclen)
 }
 EXPORT_SYMBOL(security_release_secctx);
 
+void security_inode_invalidate_secctx(struct inode *inode)
+{
+	call_void_hook(inode_invalidate_secctx, inode);
+}
+EXPORT_SYMBOL(security_inode_invalidate_secctx);
+
 int security_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen)
 {
 	return call_int_hook(inode_notifysecctx, 0, inode, ctx, ctxlen);
@@ -1554,6 +1561,37 @@ int security_audit_rule_match(u32 secid, u32 field, u32 op, void *lsmrule,
 }
 #endif /* CONFIG_AUDIT */
 
+#ifdef CONFIG_BPF_SYSCALL
+int security_bpf(int cmd, union bpf_attr *attr, unsigned int size)
+{
+	return call_int_hook(bpf, 0, cmd, attr, size);
+}
+int security_bpf_map(struct bpf_map *map, fmode_t fmode)
+{
+	return call_int_hook(bpf_map, 0, map, fmode);
+}
+int security_bpf_prog(struct bpf_prog *prog)
+{
+	return call_int_hook(bpf_prog, 0, prog);
+}
+int security_bpf_map_alloc(struct bpf_map *map)
+{
+	return call_int_hook(bpf_map_alloc_security, 0, map);
+}
+int security_bpf_prog_alloc(struct bpf_prog_aux *aux)
+{
+	return call_int_hook(bpf_prog_alloc_security, 0, aux);
+}
+void security_bpf_map_free(struct bpf_map *map)
+{
+	call_void_hook(bpf_map_free_security, map);
+}
+void security_bpf_prog_free(struct bpf_prog_aux *aux)
+{
+	call_void_hook(bpf_prog_free_security, aux);
+}
+#endif /* CONFIG_BPF_SYSCALL */
+
 struct security_hook_heads security_hook_heads = {
 	.binder_set_context_mgr =
 		LIST_HEAD_INIT(security_hook_heads.binder_set_context_mgr),
@@ -1781,6 +1819,8 @@ struct security_hook_heads security_hook_heads = {
 		LIST_HEAD_INIT(security_hook_heads.secctx_to_secid),
 	.release_secctx =
 		LIST_HEAD_INIT(security_hook_heads.release_secctx),
+	.inode_invalidate_secctx =
+		LIST_HEAD_INIT(security_hook_heads.inode_invalidate_secctx),
 	.inode_notifysecctx =
 		LIST_HEAD_INIT(security_hook_heads.inode_notifysecctx),
 	.inode_setsecctx =
@@ -1900,4 +1940,20 @@ struct security_hook_heads security_hook_heads = {
 	.audit_rule_free =
 		LIST_HEAD_INIT(security_hook_heads.audit_rule_free),
 #endif /* CONFIG_AUDIT */
+#ifdef CONFIG_BPF_SYSCALL
+	.bpf =
+		LIST_HEAD_INIT(security_hook_heads.bpf),
+	.bpf_map =
+		LIST_HEAD_INIT(security_hook_heads.bpf_map),
+	.bpf_prog =
+		LIST_HEAD_INIT(security_hook_heads.bpf_prog),
+	.bpf_map_alloc_security =
+		LIST_HEAD_INIT(security_hook_heads.bpf_map_alloc_security),
+	.bpf_map_free_security =
+		LIST_HEAD_INIT(security_hook_heads.bpf_map_free_security),
+	.bpf_prog_alloc_security =
+		LIST_HEAD_INIT(security_hook_heads.bpf_prog_alloc_security),
+	.bpf_prog_free_security =
+		LIST_HEAD_INIT(security_hook_heads.bpf_prog_free_security),
+#endif /* CONFIG_BPF_SYSCALL */
 };

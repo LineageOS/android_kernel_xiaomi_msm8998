@@ -36,6 +36,11 @@ struct task_security_struct {
 	u32 sockcreate_sid;	/* fscreate SID */
 };
 
+enum label_initialized {
+	LABEL_INVALID,		/* invalid or not initialized */
+	LABEL_INITIALIZED	/* initialized */
+};
+
 struct inode_security_struct {
 	struct inode *inode;	/* back pointer to inode object */
 	union {
@@ -122,6 +127,10 @@ struct tun_security_struct {
 
 struct key_security_struct {
 	u32 sid;	/* SID of key */
+};
+
+struct bpf_security_struct {
+	u32 sid;  /*SID of bpf obj creater*/
 };
 
 extern unsigned int selinux_checkreqprot;

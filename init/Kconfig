@@ -1212,10 +1212,27 @@ config DEBUG_BLK_CGROUP
 	Enable some debugging help. Currently it exports additional stat
 	files in a cgroup which can be useful for debugging.
 
+config CGROUP_BPF
+        bool "Support for eBPF programs attached to cgroups"
+        depends on BPF_SYSCALL
+        select SOCK_CGROUP_DATA
+        help
+          Allow attaching eBPF programs to a cgroup using the bpf(2)
+          syscall command BPF_PROG_ATTACH.
+
+          In which context these programs are accessed depends on the type
+          of attachment. For instance, programs that are attached using
+          BPF_CGROUP_INET_INGRESS will be executed on the ingress path of
+          inet sockets.
+
 config CGROUP_WRITEBACK
 	bool
 	depends on MEMCG && BLK_CGROUP
 	default y
+
+config SOCK_CGROUP_DATA
+	bool
+	default n
 
 endif # CGROUPS
 
@@ -1734,6 +1751,16 @@ config ADVISE_SYSCALLS
 	  usage, improving performance. If building an embedded system where no
 	  applications use these syscalls, you can disable this option to save
 	  space.
+
+config BPF_UNPRIV_DEFAULT_OFF
+	bool "Disable unprivileged BPF by default"
+	depends on BPF_SYSCALL
+	help
+	  Disables unprivileged BPF by default by setting the corresponding
+	  /proc/sys/kernel/unprivileged_bpf_disabled knob to 2. An admin can
+	  still reenable it by setting it to 0 later on, or permanently
+	  disable it by setting it to 1 (from which no other transition to
+	  0 is possible anymore).
 
 config USERFAULTFD
 	bool "Enable userfaultfd() system call"
