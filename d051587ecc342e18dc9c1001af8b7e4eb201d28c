@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "a0ef83ae_f6f19111",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 29551
+      },
+      "writtenOn": "2022-04-26T12:02:07Z",
+      "side": 1,
+      "message": "Enable zram writeback for xiaomi-msm8998 device",
+      "revId": "d051587ecc342e18dc9c1001af8b7e4eb201d28c",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
