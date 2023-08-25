@@ -18,8 +18,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/input/ft5x46_ts.h>
-#include "focaltech_test.h"
-struct i2c_client *fts_i2c_client = NULL;
+
 static int ft5x46_i2c_recv(struct device *dev,
 				void *buf, int len)
 {
@@ -36,70 +35,6 @@ static int ft5x46_i2c_send(struct device *dev,
 	return count < 0 ? count : 0;
 }
 
-int fts_i2c_read(struct i2c_client *client, char *writebuf,
-		int writelen, char *readbuf, int readlen)
-{
-	int ret;
-
-	if (readlen > 0)	{
-		if (writelen > 0) {
-			struct i2c_msg msgs[] = {
-				{
-					 .addr = client->addr,
-					 .flags = 0,
-					 .len = writelen,
-					 .buf = writebuf,
-				 },
-				{
-					 .addr = client->addr,
-					 .flags = I2C_M_RD,
-					 .len = readlen,
-					 .buf = readbuf,
-				 },
-			};
-			ret = i2c_transfer(client->adapter, msgs, 2);
-			if (ret < 0)
-				dev_err(&client->dev, "%s:i2c read error.\n",
-						__func__);
-		} else {
-			struct i2c_msg msgs[] = {
-				{
-					 .addr = client->addr,
-					 .flags = I2C_M_RD,
-					 .len = readlen,
-					 .buf = readbuf,
-				 },
-			};
-			ret = i2c_transfer(client->adapter, msgs, 1);
-			if (ret < 0)
-				dev_err(&client->dev, "%s:i2c read error.\n",
-						__func__);
-		}
-	}
-	return ret;
-}
-
-int fts_i2c_write(struct i2c_client *client, char *writebuf, int writelen)
-{
-	int ret;
-
-	struct i2c_msg msgs[] = {
-		{
-			 .addr = client->addr,
-			 .flags = 0,
-			 .len = writelen,
-			 .buf = writebuf,
-		 },
-	};
-
-	if (writelen > 0) {
-		ret = i2c_transfer(client->adapter, msgs, 1);
-		if (ret < 0)
-			dev_err(&client->dev, "%s: i2c write error.\n",
-					__func__);
-	}
-	return ret;
-}
 static int ft5x46_i2c_read(struct device *dev,
 				u8 addr, void *buf, u8 len)
 {
@@ -156,10 +91,7 @@ static int ft5x46_i2c_probe(struct i2c_client *client,
 	if (IS_ERR(ft5x46))
 		return PTR_ERR(ft5x46);
 
-
 	i2c_set_clientdata(client, ft5x46);
-	fts_i2c_client = client;
-	fts_test_module_init(client);
 	device_init_wakeup(&client->dev, 1);
 
 	return 0;
@@ -168,7 +100,6 @@ static int ft5x46_i2c_probe(struct i2c_client *client,
 static int ft5x46_i2c_remove(struct i2c_client *client)
 {
 	struct ft5x46_data *ft5x0x = i2c_get_clientdata(client);
-	fts_test_module_exit(client);
 	ft5x46_remove(ft5x0x);
 	return 0;
 }
