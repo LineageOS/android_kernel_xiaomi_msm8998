@@ -331,7 +331,7 @@ err_free_usbhs:
 }
 EXPORT_SYMBOL(usbhs_init);
 
-void usbhs_deinit()
+void usbhs_deinit(void)
 {
 	if (!usb_hs) {
 		cancel_work_sync(&usb_hs->psy_work);
