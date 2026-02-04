@@ -465,7 +465,7 @@ static void sfb_destroy(struct Qdisc *sch)
 	struct sfb_sched_data *q = qdisc_priv(sch);
 
 	tcf_destroy_chain(&q->filter_list);
-	qdisc_destroy(q->qdisc);
+	qdisc_put(q->qdisc);
 }
 
 static const struct nla_policy sfb_policy[TCA_SFB_MAX + 1] = {
@@ -516,7 +516,7 @@ static int sfb_change(struct Qdisc *sch, struct nlattr *opt)
 
 	qdisc_tree_reduce_backlog(q->qdisc, q->qdisc->q.qlen,
 				  q->qdisc->qstats.backlog);
-	qdisc_destroy(q->qdisc);
+	qdisc_put(q->qdisc);
 	q->qdisc = child;
 
 	q->rehash_interval = msecs_to_jiffies(ctl->rehash_interval);

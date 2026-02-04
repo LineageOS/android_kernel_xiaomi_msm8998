@@ -192,7 +192,7 @@ multiq_destroy(struct Qdisc *sch)
 
 	tcf_destroy_chain(&q->filter_list);
 	for (band = 0; band < q->bands; band++)
-		qdisc_destroy(q->queues[band]);
+		qdisc_put(q->queues[band]);
 
 	kfree(q->queues);
 }
@@ -220,7 +220,7 @@ static int multiq_tune(struct Qdisc *sch, struct nlattr *opt)
 			q->queues[i] = &noop_qdisc;
 			qdisc_tree_reduce_backlog(child, child->q.qlen,
 						  child->qstats.backlog);
-			qdisc_destroy(child);
+			qdisc_put(child);
 		}
 	}
 
@@ -242,7 +242,7 @@ static int multiq_tune(struct Qdisc *sch, struct nlattr *opt)
 					qdisc_tree_reduce_backlog(old,
 								  old->q.qlen,
 								  old->qstats.backlog);
-					qdisc_destroy(old);
+					qdisc_put(old);
 				}
 				sch_tree_unlock(sch);
 			}
