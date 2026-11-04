@@ -6002,6 +6002,15 @@ int hdd_set_genie_to_csr(hdd_adapter_t *pAdapter, eCsrAuthType *RSNAuthType)
 			 RSNMfpRequired, RSNMfpCapable);
 		pWextState->roamProfile.MFPRequired = RSNMfpRequired;
 		pWextState->roamProfile.MFPCapable = RSNMfpCapable;
+		/*
+		 * The connect request only carries NL80211_MFP_REQUIRED when
+		 * PMF is mandatory, so PMF negotiated as optional (MFPC set in
+		 * the RSN IE from the supplicant) would leave MFPEnabled unset
+		 * and firmware unaware that the peer uses PMF. Follow the RSN
+		 * IE the supplicant actually sends instead.
+		 */
+		if (RSNMfpCapable)
+			pWextState->roamProfile.MFPEnabled = true;
 #endif
 		hdd_debug("CSR AuthType = %d, EncryptionType = %d mcEncryptionType = %d",
 			 *RSNAuthType, RSNEncryptType, mcRSNEncryptType);
